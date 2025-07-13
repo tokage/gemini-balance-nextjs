@@ -10,6 +10,8 @@ WORKDIR /app
 
 # Install dependencies
 COPY package.json pnpm-lock.yaml* ./
+# Copy prisma schema to be available for generate
+COPY prisma ./prisma
 RUN corepack enable pnpm && pnpm i --frozen-lockfile
 
 # Rebuild the source code only when needed
@@ -24,21 +26,20 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED 1
 
 # 接收构建参数
-ARG GEMINI_API_KEYS
-ARG MAX_FAILURES
 ARG ALLOWED_TOKENS
 ARG AUTH_TOKEN
-ARG GOOGLE_API_HOST
 ARG DATABASE_URL
+ARG GEMINI_API_KEYS
+ARG GOOGLE_API_HOST
+ARG MAX_FAILURES
 
 # 转换为环境变量
-ENV GEMINI_API_KEYS=$GEMINI_API_KEYS \
-    MAX_FAILURES=$MAX_FAILURES \
-    ALLOWED_TOKENS=$ALLOWED_TOKENS \
-    MAX_FAILURES=$MAX_FAILURES \
+ENV ALLOWED_TOKENS=$ALLOWED_TOKENS \
     AUTH_TOKEN=$AUTH_TOKEN \
+    DATABASE_URL=$DATABASE_URL \
     GOOGLE_API_HOST=$GOOGLE_API_HOST \
-    DATABASE_URL=$DATABASE_URL
+    MAX_FAILURES=$MAX_FAILURES \
+    GEMINI_API_KEYS=$GEMINI_API_KEYS
 
 RUN corepack enable pnpm && pnpm build
 
