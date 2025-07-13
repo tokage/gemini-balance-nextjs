@@ -1,49 +1,42 @@
 import { cycle } from "itertools";
+import { prisma } from "./db";
+import logger from "./logger";
+import { getSettings } from "./settings";
 
 /**
  * Manages a pool of API keys, providing round-robin selection,
  * failure tracking, and automatic recovery.
  */
-class KeyManager {
+export class KeyManager {
   private keys: readonly string[];
   private keyCycle: IterableIterator<string>;
   private failureCounts: Map<string, number>;
   private readonly maxFailures: number;
 
-  /**
-   * Initializes the KeyManager with a list of API keys.
-   * @param keys - An array of API key strings.
-   * @param maxFailures - The number of failures before a key is considered invalid.
-   */
   constructor(keys: string[], maxFailures: number = 3) {
     if (!keys || keys.length === 0) {
       throw new Error(
-        "KeyManager must be initialized with at least one API key."
+        "KeyManager must be initialized with at least one API key from the database."
       );
     }
     this.keys = Object.freeze([...keys]);
     this.keyCycle = cycle(this.keys);
     this.failureCounts = new Map(this.keys.map((key) => [key, 0]));
     this.maxFailures = maxFailures;
+    logger.info(
+      `KeyManager initialized with ${this.keys.length} keys from database.`
+    );
   }
 
-  /**
-   * Checks if a key is currently considered valid.
-   * @param key - The API key to check.
-   * @returns True if the key is valid, false otherwise.
-   */
   public isKeyValid(key: string): boolean {
     const failures = this.failureCounts.get(key);
     return failures !== undefined && failures < this.maxFailures;
   }
 
-  /**
-   * Retrieves the next available, valid API key from the pool.
-   * It cycles through the keys until a working one is found.
-   * @returns A valid API key.
-   * @throws An error if all keys are currently marked as invalid.
-   */
   public getNextWorkingKey(): string {
+    if (this.keys.length === 0) {
+      throw new Error("No API keys available in the key manager.");
+    }
     for (let i = 0; i < this.keys.length; i++) {
       const key = this.keyCycle.next().value;
       if (this.isKeyValid(key)) {
@@ -55,78 +48,61 @@ class KeyManager {
     );
   }
 
-  /**
-   * Records a failure for a specific API key.
-   * @param key - The API key that failed.
-   */
   public handleApiFailure(key: string): void {
     if (this.failureCounts.has(key)) {
       const currentFailures = this.failureCounts.get(key)!;
       this.failureCounts.set(key, currentFailures + 1);
-      console.warn(
-        `Failure recorded for key ending in ...${key.slice(
-          -4
-        )}. Total failures: ${currentFailures + 1}`
+      logger.warn(
+        { key: `...${key.slice(-4)}`, failures: currentFailures + 1 },
+        `Failure recorded for key.`
       );
     }
   }
 
-  /**
-   * Resets the failure count for a specific API key, making it valid again.
-   * @param key - The API key to reset.
-   */
   public resetKeyFailureCount(key: string): void {
     if (this.failureCounts.has(key)) {
       this.failureCounts.set(key, 0);
-      console.log(`Failure count reset for key ending in ...${key.slice(-4)}.`);
+      logger.info(
+        { key: `...${key.slice(-4)}` },
+        `Failure count reset for key.`
+      );
     }
   }
 
-  /**
-   * Resets the failure counts for all keys.
-   */
-  public resetAllFailureCounts(): void {
-    for (const key of this.keys) {
-      this.failureCounts.set(key, 0);
-    }
-    console.log("All key failure counts have been reset.");
-  }
-
-  /**
-   * Gets the status of all keys, categorized as valid or invalid.
-   * @returns An object containing lists of valid and invalid keys with their failure counts.
-   */
-  public getKeysByStatus(): {
-    valid: { key: string; failures: number }[];
-    invalid: { key: string; failures: number }[];
-  } {
-    const valid: { key: string; failures: number }[] = [];
-    const invalid: { key: string; failures: number }[] = [];
-
-    for (const key of this.keys) {
-      const failures = this.failureCounts.get(key)!;
-      const keyStatus = { key, failures };
-      if (this.isKeyValid(key)) {
-        valid.push(keyStatus);
-      } else {
-        invalid.push(keyStatus);
-      }
-    }
-    return { valid, invalid };
+  public getAllKeys(): {
+    key: string;
+    failCount: number;
+    isWorking: boolean;
+  }[] {
+    return this.keys.map((key) => {
+      const failCount = this.failureCounts.get(key)!;
+      return {
+        key,
+        failCount,
+        isWorking: this.isKeyValid(key),
+      };
+    });
   }
 }
 
 // --- Singleton Instance ---
 
-// Helper function to load keys from environment variables
+// A more robust singleton pattern that works across hot-reloads in development.
+const globalWithKeyManager = global as typeof global & {
+  keyManagerPromise: Promise<KeyManager> | null;
+};
+
+export function resetKeyManager() {
+  if (globalWithKeyManager.keyManagerPromise) {
+    globalWithKeyManager.keyManagerPromise = null;
+    logger.info("KeyManager instance reset.");
+  }
+}
+
 const getKeysFromEnv = (): string[] => {
   const keysEnv = process.env.GEMINI_API_KEYS;
   if (!keysEnv) {
-    console.warn(
-      "GEMINI_API_KEYS environment variable not set. Using fallback test key."
-    );
-    // Return a dummy key for development if no keys are provided
-    return ["dummy-key-for-development-only"];
+    return [];
   }
   return keysEnv
     .split(",")
@@ -134,25 +110,48 @@ const getKeysFromEnv = (): string[] => {
     .filter(Boolean);
 };
 
-const getMaxFailuresFromEnv = (): number => {
-  const maxFailures = process.env.MAX_FAILURES;
-  if (maxFailures && !isNaN(parseInt(maxFailures, 10))) {
-    return parseInt(maxFailures, 10);
-  }
-  return 3; // Default value
-};
+async function createKeyManager(): Promise<KeyManager> {
+  // 1. Load keys from environment as the primary source
+  const keysFromEnv = getKeysFromEnv();
 
-let keyManagerInstance: KeyManager | null = null;
+  // 2. Load keys from the database as a secondary source
+  const keysFromDb = (await prisma.apiKey.findMany()).map((k) => k.key);
+
+  // 3. Combine and deduplicate keys, giving priority to environment keys
+  const combinedKeys = [...new Set([...keysFromEnv, ...keysFromDb])];
+
+  // 4. Sync combined keys back to the database for persistence
+  if (combinedKeys.length > 0) {
+    const keysInDb = await prisma.apiKey.findMany();
+    const keysToCreate = combinedKeys.filter(
+      (envKey) => !keysInDb.some((dbKey) => dbKey.key === envKey)
+    );
+
+    if (keysToCreate.length > 0) {
+      await prisma.apiKey.createMany({
+        data: keysToCreate.map((key) => ({ key })),
+      });
+      logger.info(`Synced ${keysToCreate.length} new keys to the database.`);
+    }
+  }
+
+  // 5. Load settings using the settings service
+  const settings = await getSettings();
+  const maxFailures = settings.MAX_FAILURES;
+
+  // 6. Initialize KeyManager with the combined list of keys
+  return new KeyManager(combinedKeys, maxFailures);
+}
 
 /**
  * Returns the singleton instance of the KeyManager.
- * Initializes it on first call.
  */
-export const getKeyManager = (): KeyManager => {
-  if (!keyManagerInstance) {
-    const apiKeys = getKeysFromEnv();
-    const maxFailures = getMaxFailuresFromEnv();
-    keyManagerInstance = new KeyManager(apiKeys, maxFailures);
+export function getKeyManager(): Promise<KeyManager> {
+  if (!globalWithKeyManager.keyManagerPromise) {
+    logger.info("No existing KeyManager instance found, creating a new one.");
+    globalWithKeyManager.keyManagerPromise = createKeyManager();
+  } else {
+    logger.info("Returning existing KeyManager instance.");
   }
-  return keyManagerInstance;
-};
+  return globalWithKeyManager.keyManagerPromise;
+}
