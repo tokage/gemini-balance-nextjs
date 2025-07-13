@@ -37,9 +37,9 @@ ARG MAX_FAILURES
 ENV ALLOWED_TOKENS=$ALLOWED_TOKENS \
     AUTH_TOKEN=$AUTH_TOKEN \
     DATABASE_URL=$DATABASE_URL \
+    GEMINI_API_KEYS=$GEMINI_API_KEYS \
     GOOGLE_API_HOST=$GOOGLE_API_HOST \
-    MAX_FAILURES=$MAX_FAILURES \
-    GEMINI_API_KEYS=$GEMINI_API_KEYS
+    MAX_FAILURES=$MAX_FAILURES
 
 RUN corepack enable pnpm && pnpm build
 
@@ -64,6 +64,13 @@ RUN chown nextjs:nodejs .next
 # https://nextjs.org/docs/advanced-features/output-file-tracing
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Copy prisma schema and client for production
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/node_modules/.prisma/client ./node_modules/.prisma/client
+
+# Ensure the nextjs user has ownership of the prisma directory
+RUN chown -R nextjs:nodejs /app/prisma
 
 USER nextjs
 
