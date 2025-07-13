@@ -46,6 +46,9 @@ ENV ALLOWED_TOKENS=$ALLOWED_TOKENS \
 # Build Project
 RUN corepack enable pnpm && pnpm build
 
+# Create a backup of the prisma directory
+RUN cp -r ./prisma /app/prisma.bak
+
 # Copy entrypoint script
 COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
@@ -67,6 +70,7 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder /app/entrypoint.sh /app/entrypoint.sh
+COPY --from=builder /app/prisma.bak /app/prisma.bak
 
 # Clean up node_modules to reduce image size
 RUN find ./node_modules -type f -name "*.md" -delete && \
@@ -74,7 +78,7 @@ RUN find ./node_modules -type f -name "*.md" -delete && \
 
 # Create prisma directory and set permissions
 RUN mkdir -p /app/prisma && \
-    chown -R nextjs:nodejs /app/prisma .next
+    chown -R nextjs:nodejs /app/prisma /app/prisma.bak .next
 
 USER nextjs
 
