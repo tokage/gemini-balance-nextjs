@@ -1,27 +1,38 @@
 {
-  "name": "gemini-balance-nextjs",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
-  },
-  "dependencies": {
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "next": "15.3.5"
-  },
-  "devDependencies": {
-    "typescript": "^5",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "@tailwindcss/postcss": "^4",
-    "tailwindcss": "^4",
-    "eslint": "^9",
-    "eslint-config-next": "15.3.5",
-    "@eslint/eslintrc": "^3"
-  }
+    "name": "gemini-balance-nextjs",
+    "version": "0.1.0",
+    "private": true,
+    "scripts": {
+        "dev": "next dev | pino-pretty",
+        "build": "next build",
+        "start": "next start",
+        "lint": "next lint",
+        "db:migrate": "tsx scripts/migrate.ts",
+        "postinstall": "prisma generate"
+    },
+    "dependencies": {
+        "@google/generative-ai": "^0.24.1",
+        "@prisma/client": "^6.11.1",
+        "geist": "^1.4.2",
+        "https-proxy-agent": "^7.0.6",
+        "itertools": "^2.4.1",
+        "next": "15.3.5",
+        "pino": "^9.7.0",
+        "react": "^19.0.0",
+        "react-dom": "^19.0.0"
+    },
+    "devDependencies": {
+        "@eslint/eslintrc": "^3",
+        "@tailwindcss/postcss": "^4",
+        "@types/node": "^20",
+        "@types/react": "^19",
+        "@types/react-dom": "^19",
+        "eslint": "^9",
+        "eslint-config-next": "15.3.5",
+        "pino-pretty": "^13.0.0",
+        "prisma": "^6.11.1",
+        "tailwindcss": "^4",
+        "tsx": "^4.20.3",
+        "typescript": "^5"
+    }
 }
