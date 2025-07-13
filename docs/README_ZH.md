@@ -27,7 +27,7 @@
 1.  **`src/middleware.ts`**: 所有传入请求的入口点。该文件处理路由和身份验证逻辑，根据路径将流量引导至正确的处理程序。
 2.  **`src/lib/gemini-proxy.ts`**: 核心代理逻辑。它从 API 路由接收请求，获取一个可用的 API 密钥，并将请求转发给 Google Gemini API。
 3.  **`src/lib/key-manager.ts`**: `KeyManager` 类，负责所有 API 密钥管理，包括从环境和数据库加载密钥、轮换和失败跟踪。
-4.  **`src/app/(api-proxy)`**: 包含 API 路由（`/gemini`, `/openai`, `/v1beta`）的目录。这些路由非常轻量，将所有逻辑委托给中间件和代理。
+4.  **`src/app/{gemini,openai,v1beta}`**: 包含 API 路由的目录。这些路由非常轻量，将所有逻辑委托给中间件和代理。
 5.  **`src/app/admin`**: 管理仪表盘的代码，包括 UI 组件和用于管理应用的服务器端操作。
 6.  **`prisma/schema.prisma`**: 定义用于存储 API 密钥和设置的数据库 schema。
 
@@ -75,11 +75,15 @@ AUTH_TOKEN=a_strong_and_secret_token_for_ui
 # 如果留空，您仍然可以使用您的 AUTH_TOKEN 访问 API。
 ALLOWED_TOKENS=user_token_1,user_token_2
 
-# 4. 密钥失败阈值 (可选, 默认: 3)
+# 4. Google API 主机 (可选, 默认: https://generativelanguage.googleapis.com)
+# 可以被覆盖以使用代理或不同的区域端点。
+GOOGLE_API_HOST=https://generativelanguage.googleapis.com
+
+# 5. 密钥失败阈值 (可选, 默认: 3)
 # 在将密钥标记为无效之前，允许的最大连续失败次数。
 MAX_FAILURES=3
 
-# 5. 代理服务器地址 (可选)
+# 6. 代理服务器地址 (可选)
 # 如果您的服务器位于 Gemini API 不支持的地区，
 # 您可以提供一个 HTTP/HTTPS 代理服务器地址来转发请求。
 # 示例: PROXY_URL=http://user:pass@host:port
@@ -96,46 +100,53 @@ pnpm dev
 
 ## 使用 Docker 部署
 
-对于更接近生产环境的设置，您可以使用 Docker 和 Docker Compose 在容器中运行该应用。
+本项目是一个**有状态应用**，需要一个数据库。提供的 `Dockerfile` 已为生产部署进行了优化，使用了 Next.js 的 `standalone` 输出模式，并包含一个健壮的自动化数据库迁移机制。
 
-### 1. 为 Docker 配置环境
+### 生产环境部署 (例如，使用 Coolify)
 
-`docker-compose.yml` 文件会从项目根目录下的 `.env` 文件中读取环境变量。您只需将 `.env.local` 文件重命名为 `.env` 或创建一个副本即可。
+这是在生产环境中运行本应用的推荐方法。
+
+#### 1. 部署原则
+
+- **Standalone 输出**：`Dockerfile` 利用了 Next.js 的 `output: "standalone"` 特性来创建一个最小化的、为生产优化的镜像。`next.config.ts` 文件已配置为可以正确追踪并包含部署所需的 Prisma 文件。
+- **自动迁移与权限管理**：镜像使用一个 `entrypoint.sh` 脚本来解决关键的部署挑战：
+  1.  它以 `root` 用户身份启动，以修复由部署平台挂载的数据卷的权限问题。
+  2.  然后，它以权限较低的 `nextjs` 用户身份运行数据库迁移 (`npx prisma migrate deploy`)。
+  3.  最后，它以 `nextjs` 用户身份启动应用服务器。
+- **数据与配置分离**：应用被设计为将其数据库存储在一个专用的 `/app/data` 目录中，而 Prisma 的配置文件保留在 `/app/prisma`。这种分离是实现持久化数据存储而无部署错误的关键。
+
+#### 2. 部署平台配置 (Coolify 示例)
+
+当从 GitHub Container Registry 部署预构建的镜像时，您需要在您的服务中配置两个关键设置：
+
+1.  **卷挂载 (Volume Mount)**：
+
+    - 将一个持久化卷挂载到容器的 `/app/data` 目录。
+    - **源 (Source)**：`your_persistent_storage` (例如，由 Coolify 管理的卷)
+    - **目标/挂载路径 (Target/Mount Path)**：`/app/data`
+    - **至关重要**：**不要**将卷挂载到 `/app/prisma`。这样做会隐藏镜像中内置的 schema 文件，并导致迁移命令失败。
+
+2.  **环境变量 (Environment Variables)**：
+    - 将 `DATABASE_URL` 设置为指向**卷内**的数据库文件。必需值为 `file:/app/data/prod.db`。
+    - 设置所有其他所需的环境变量 (如 `GEMINI_API_KEYS`, `AUTH_TOKEN` 等)。
+
+#### 3. 本地开发与 Docker Compose
+
+对于模拟生产环境的本地测试，您可以使用项目提供的 `docker-compose.yml` 文件。
 
 ```bash
+# 1. 确保您有一个包含环境变量的 .env 文件
 cp .env.local .env
-```
 
-请确保您的 `.env` 文件包含了所有必需的变量（如 `GEMINI_API_KEYS`, `AUTH_TOKEN` 等）。
-
-### 2. 构建并运行容器
-
-使用 Docker Compose 构建镜像并以分离模式启动容器。
-
-```bash
+# 2. 在后台构建并运行容器
 docker-compose up --build -d
 ```
 
-应用将在 `http://localhost:3000` 上可用。
-
-### 3. 数据库持久化
-
-`docker-compose.yml` 已配置为持久化 SQLite 数据库。它将本地的 `./prisma` 目录挂载到容器内的 `/app/prisma`。这意味着您的数据库文件 (`dev.db`) 将存储在您的主机上，即时容器被停止或重启也不会丢失。
-
-首次运行容器时，您可能需要在容器内部执行数据库迁移命令：
-
-```bash
-docker-compose exec app pnpm prisma migrate dev
-```
-
-### 4. 查看日志与停止应用
-
-- 查看应用日志: `docker-compose logs -f`
-- 停止应用: `docker-compose down`
+`docker-compose.yml` 文件已预先配置为使用生产部署策略：它将本地的 `./data` 目录挂载到容器的 `/app/data`，并相应地设置 `DATABASE_URL`。`entrypoint.sh` 脚本将在首次启动时自动处理数据库迁移。
 
 ## 使用 GitHub Actions 进行 CI/CD
 
-本项目包含一个 GitHub Actions 工作流，它会在代码被推送到 `main` 分支时，自动构建一个 Docker 镜像并将其推送到 **GitHub Container Registry (ghcr.io)**。
+本项目包含一个 GitHub Actions 工作流，它会在代码被推送到 `master` 分支时，自动构建一个 Docker 镜像并将其推送到 **GitHub Container Registry (ghcr.io)**。
 
 ### 1. Fork 本仓库
 
@@ -150,7 +161,7 @@ docker-compose exec app pnpm prisma migrate dev
 
 - `GEMINI_API_KEYS`: 您的 Gemini API 密钥，以逗号分隔。
 - `AUTH_TOKEN`: 用于管理仪表盘的秘密令牌。
-- `DATABASE_URL`: 您的数据库连接字符串 (例如, `file:/app/prisma/prod.db`)。
+- `DATABASE_URL`: 您的数据库连接字符串。对于生产环境，应指向持久化卷中的文件，例如 `file:/app/data/prod.db`。
 - `ALLOWED_TOKENS` (可选): API 访问令牌，以逗号分隔。
 - `MAX_FAILURES` (可选): 密钥失败阈值。
 - `GOOGLE_API_HOST` (可选): 自定义的 Google API 主机。
@@ -164,7 +175,7 @@ docker-compose exec app pnpm prisma migrate dev
 ### 3. 工作原理
 
 - 工作流定义在 `.github/workflows/deploy.yml` 文件中。
-- 每当有代码推送到 `main` 分支时，该 action 将会：
+- 每当有代码推送到 `master` 分支时，该 action 将会：
   1. 检出代码。
   2. 登录到 GitHub Container Registry (`ghcr.io`)。
   3. 构建 Docker 镜像，并注入您配置的 secrets。
