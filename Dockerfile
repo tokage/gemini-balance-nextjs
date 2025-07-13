@@ -62,15 +62,13 @@ ENV NODE_ENV production
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# Copy application code and artifacts
+# Copy production dependencies and build artifacts
 COPY --from=builder /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-COPY --from=builder /app/entrypoint.sh /app/entrypoint.sh
-
-# Explicitly copy Prisma schema and client
-COPY --from=builder /app/prisma/schema.prisma ./prisma/schema.prisma
-COPY --from=builder /app/node_modules/.prisma/client ./node_modules/.prisma/client
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/entrypoint.sh ./entrypoint.sh
 
 # Set ownership for the app directory
 RUN chown -R nextjs:nodejs /app
@@ -82,6 +80,5 @@ EXPOSE 3000
 ENV PORT 3000
 ENV HOSTNAME "0.0.0.0"
 
-# server.js is created by next build from the standalone output
-# https://nextjs.org/docs/pages/api-reference/next-config-js/output
-CMD ["/app/entrypoint.sh"]
+# Run the entrypoint script to migrate and start
+CMD ["./entrypoint.sh"]
