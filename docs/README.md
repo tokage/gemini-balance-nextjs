@@ -135,7 +135,7 @@ docker-compose exec app pnpm prisma migrate dev
 
 ## CI/CD with GitHub Actions
 
-This project includes a GitHub Actions workflow to automatically build and push the Docker image to Docker Hub whenever changes are pushed to the `main` branch.
+This project includes a GitHub Actions workflow to automatically build and push a Docker image to the **GitHub Container Registry (ghcr.io)** whenever changes are pushed to the `main` branch.
 
 ### 1. Fork the Repository
 
@@ -143,21 +143,35 @@ First, fork this repository to your own GitHub account.
 
 ### 2. Configure GitHub Secrets
 
-For the workflow to access your Docker Hub account, you must configure the following secrets in your GitHub repository's settings (`Settings` > `Secrets and variables` > `Actions`):
+The workflow requires several secrets to be configured in your GitHub repository's settings (`Settings` > `Secrets and variables` > `Actions`) to build the image and trigger deployments.
 
-- **`DOCKERHUB_USERNAME`**: Your Docker Hub username.
-- **`DOCKERHUB_TOKEN`**: A Docker Hub access token. You can generate one in your Docker Hub account settings.
+**Required for Docker Build:**
+These secrets are passed as build arguments to Docker, embedding them into your image.
+
+- `GEMINI_API_KEYS`: Comma-separated list of your Gemini API keys.
+- `AUTH_TOKEN`: A secret token for the admin dashboard.
+- `DATABASE_URL`: The connection string for your database (e.g., `file:/app/prisma/prod.db`).
+- `ALLOWED_TOKENS` (Optional): Comma-separated list of API access tokens.
+- `MAX_FAILURES` (Optional): Key failure threshold.
+- `GOOGLE_API_HOST` (Optional): Custom Google API host.
+
+**For Auto-Redeployment (Optional):**
+If you use a hosting service like Coolify, you can configure webhooks to automatically redeploy your application when a new image is pushed.
+
+- `COOLIFY_WEBHOOK`: The webhook URL provided by Coolify.
+- `COOLIFY_TOKEN`: The authentication token for the Coolify webhook.
 
 ### 3. How It Works
 
 - The workflow is defined in `.github/workflows/deploy.yml`.
 - On every push to the `main` branch, the action will:
   1. Check out the code.
-  2. Log in to Docker Hub using your stored secrets.
-  3. Build the Docker image.
-  4. Push the image to your Docker Hub repository, tagging it as `your_username/gemini-balance-nextjs:latest`.
+  2. Log in to the GitHub Container Registry (`ghcr.io`).
+  3. Build the Docker image, injecting the secrets you configured.
+  4. Push the image to `ghcr.io`, tagging it as `ghcr.io/YOUR_USERNAME/gemini-balance-nextjs:latest` and other git-based tags.
+  5. (Optional) Trigger a redeployment on your hosting service via the configured webhook.
 
-You can then pull this image on your server to deploy the latest version of the application.
+You can then pull this image on your server or configure your hosting service to automatically pull from `ghcr.io` to deploy the latest version.
 
 ### 5. Explore the Application
 

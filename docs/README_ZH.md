@@ -135,7 +135,7 @@ docker-compose exec app pnpm prisma migrate dev
 
 ## 使用 GitHub Actions 进行 CI/CD
 
-本项目包含一个 GitHub Actions 工作流，可以在代码被推送到 `main` 分支时，自动构建 Docker 镜像并将其推送到 Docker Hub。
+本项目包含一个 GitHub Actions 工作流，它会在代码被推送到 `main` 分支时，自动构建一个 Docker 镜像并将其推送到 **GitHub Container Registry (ghcr.io)**。
 
 ### 1. Fork 本仓库
 
@@ -143,21 +143,35 @@ docker-compose exec app pnpm prisma migrate dev
 
 ### 2. 配置 GitHub Secrets
 
-为了让工作流能够访问您的 Docker Hub 账户，您必须在您的 GitHub 仓库设置中配置以下 secrets（`Settings` > `Secrets and variables` > `Actions`）：
+工作流需要您在 GitHub 仓库的设置中（`Settings` > `Secrets and variables` > `Actions`）配置一些 secrets，用于构建镜像和触发部署。
 
-- **`DOCKERHUB_USERNAME`**: 您的 Docker Hub 用户名。
-- **`DOCKERHUB_TOKEN`**: 您的 Docker Hub 访问令牌。您可以在 Docker Hub 的账户设置中生成一个。
+**Docker 构建所需 Secrets:**
+这些 secrets 会作为构建参数传递给 Docker，并嵌入到您的镜像中。
+
+- `GEMINI_API_KEYS`: 您的 Gemini API 密钥，以逗号分隔。
+- `AUTH_TOKEN`: 用于管理仪表盘的秘密令牌。
+- `DATABASE_URL`: 您的数据库连接字符串 (例如, `file:/app/prisma/prod.db`)。
+- `ALLOWED_TOKENS` (可选): API 访问令牌，以逗号分隔。
+- `MAX_FAILURES` (可选): 密钥失败阈值。
+- `GOOGLE_API_HOST` (可选): 自定义的 Google API 主机。
+
+**用于自动重新部署 (可选):**
+如果您使用像 Coolify 这样的托管服务，您可以配置 webhook，以便在推送新镜像时自动重新部署您的应用。
+
+- `COOLIFY_WEBHOOK`: Coolify 提供的 webhook URL。
+- `COOLIFY_TOKEN`: Coolify webhook 的认证令牌。
 
 ### 3. 工作原理
 
 - 工作流定义在 `.github/workflows/deploy.yml` 文件中。
 - 每当有代码推送到 `main` 分支时，该 action 将会：
   1. 检出代码。
-  2. 使用您存储的 secrets 登录到 Docker Hub。
-  3. 构建 Docker 镜像。
-  4. 将镜像推送到您的 Docker Hub 仓库，并标记为 `your_username/gemini-balance-nextjs:latest`。
+  2. 登录到 GitHub Container Registry (`ghcr.io`)。
+  3. 构建 Docker 镜像，并注入您配置的 secrets。
+  4. 将镜像推送到 `ghcr.io`，并将其标记为 `ghcr.io/YOUR_USERNAME/gemini-balance-nextjs:latest` 以及其他基于 git 的标签。
+  5. (可选) 通过配置的 webhook 在您的托管服务上触发重新部署。
 
-之后，您便可以在您的服务器上拉取这个镜像，以部署最新版本的应用。
+之后，您可以在您的服务器上拉取此镜像，或配置您的托管服务从 `ghcr.io` 自动拉取，以部署最新版本。
 
 ### 5. 探索应用
 
