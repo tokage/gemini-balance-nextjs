@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import { clearAllLogs, deleteLogs, getLogs } from "./actions";
 
 type Log = {
@@ -14,7 +14,7 @@ type Log = {
   isSuccess?: boolean;
   statusCode?: number;
   latency?: number;
-  [key: string]: any;
+  [key: string]: unknown;
 };
 
 type LogType = "request" | "error";
@@ -39,21 +39,15 @@ export function LogCenter({ allKeys }: { allKeys: KeyInfo[] }) {
 
   const limit = 15;
 
-  const fetchLogs = () => {
+  const fetchLogs = useCallback(() => {
     startTransition(async () => {
       const result = await getLogs({ logType, search, page, limit });
       if (result.logs) {
-        setLogs(result.logs);
+        setLogs(result.logs as Log[]);
         setTotal(result.total || 0);
       }
     });
-  };
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    setPage(1);
-    fetchLogs();
-  };
+  }, [logType, search, page, limit]);
 
   const handleClearAll = () => {
     if (confirm(`Are you sure you want to clear all ${logType} logs?`)) {
@@ -79,7 +73,7 @@ export function LogCenter({ allKeys }: { allKeys: KeyInfo[] }) {
 
   useEffect(() => {
     fetchLogs();
-  }, [logType, page, search]);
+  }, [fetchLogs]);
 
   const renderLogDetails = (log: Log) => {
     if (logType === "request") {

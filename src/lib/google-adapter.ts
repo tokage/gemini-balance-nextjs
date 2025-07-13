@@ -1,37 +1,24 @@
 // src/lib/google-adapter.ts
 
+import type { Content, Part } from "@google/generative-ai";
 import { getSettings } from "./settings";
 
-interface GeminiPart {
-  text?: string;
-  inline_data?: {
-    mime_type: string;
-    data: string;
-  };
-  image_url?: string;
-}
-
-interface GeminiContent {
-  role: string;
-  parts: GeminiPart[];
-}
-
 interface GeminiTool {
-  functionDeclarations?: any[];
+  functionDeclarations?: Record<string, unknown>[];
   codeExecution?: object;
   googleSearch?: object;
 }
 
 interface GeminiRequestBody {
-  contents: GeminiContent[];
+  contents: Content[];
   tools?: GeminiTool[];
-  generationConfig?: any;
-  systemInstruction?: any;
+  generationConfig?: Record<string, unknown>;
+  systemInstruction?: Record<string, unknown>;
 }
 
 // Based on the Python implementation, this function cleans the JSON schema
 // properties that are not supported by the Gemini API.
-function cleanJsonSchemaProperties(obj: any): any {
+function cleanJsonSchemaProperties<T>(obj: T): T {
   if (typeof obj !== "object" || obj === null) {
     return obj;
   }
@@ -60,16 +47,16 @@ function cleanJsonSchemaProperties(obj: any): any {
   ]);
 
   if (Array.isArray(obj)) {
-    return obj.map((item: any) => cleanJsonSchemaProperties(item));
+    return obj.map((item) => cleanJsonSchemaProperties(item)) as T;
   }
 
-  const cleaned: { [key: string]: any } = {};
+  const cleaned: Partial<T> = {};
   for (const key in obj) {
     if (!unsupportedFields.has(key)) {
       cleaned[key] = cleanJsonSchemaProperties(obj[key]);
     }
   }
-  return cleaned;
+  return cleaned as T;
 }
 
 // Builds the 'tools' array based on the model and request payload.
@@ -78,7 +65,7 @@ async function buildTools(
   payload: GeminiRequestBody
 ): Promise<GeminiTool[]> {
   const settings = await getSettings();
-  let tool: GeminiTool = {};
+  const tool: GeminiTool = {};
 
   if (payload && typeof payload === "object" && payload.tools) {
     const tools = Array.isArray(payload.tools)
@@ -92,8 +79,10 @@ async function buildTools(
     }
   }
 
-  const hasImage = payload.contents?.some((c: GeminiContent) =>
-    c.parts?.some((p: GeminiPart) => p.inline_data || p.image_url)
+  const hasImage = payload.contents?.some((c: Content) =>
+    c.parts?.some(
+      (p: Part) => (p as { inlineData: unknown }).inlineData || false
+    )
   );
 
   if (
@@ -118,53 +107,62 @@ async function buildTools(
 }
 
 // Filters out contents with empty or invalid parts.
-function filterEmptyParts(contents: GeminiContent[]): GeminiContent[] {
+function filterEmptyParts(contents: Content[]): Content[] {
   if (!contents) return [];
   return contents
-    .map((content: GeminiContent) => {
+    .map((content: Content) => {
       if (!content || !Array.isArray(content.parts)) return null;
       const validParts = content.parts.filter(
-        (part: GeminiPart) =>
+        (part: Part) =>
           part && typeof part === "object" && Object.keys(part).length > 0
       );
       if (validParts.length === 0) return null;
       return { ...content, parts: validParts };
     })
-    .filter(Boolean) as GeminiContent[];
+    .filter(Boolean) as Content[];
 }
 
 // Gets safety settings based on the model.
-async function getSafetySettings(model: string): Promise<any[]> {
+async function getSafetySettings(
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _model: string
+): Promise<Record<string, unknown>[]> {
   const settings = await getSettings();
   // In the future, we might have model-specific settings like 'gemini-2.0-flash-exp'
-  return settings.SAFETY_SETTINGS || [];
+  return (settings.SAFETY_SETTINGS as Record<string, unknown>[]) || [];
 }
 
 // Main function to build the final payload for the Gemini API.
 export async function buildGeminiRequest(
   model: string,
   requestBody: GeminiRequestBody
-): Promise<any> {
+): Promise<Record<string, unknown>> {
   const settings = await getSettings();
   const filteredContents = filterEmptyParts(requestBody.contents);
   const tools = await buildTools(model, requestBody);
   const safetySettings = await getSafetySettings(model);
 
-  let generationConfig = requestBody.generationConfig || {};
+  const generationConfig = requestBody.generationConfig || {};
   if (generationConfig.maxOutputTokens === null) {
-    delete generationConfig.maxOutputTokens;
+    delete (generationConfig as Record<string, unknown>).maxOutputTokens;
   }
 
   // Handle thinkingConfig
-  if (generationConfig.thinkingConfig === undefined) {
+  if (
+    (generationConfig as Record<string, unknown>).thinkingConfig === undefined
+  ) {
     if (model.endsWith("-non-thinking")) {
-      generationConfig.thinkingConfig = { thinkingBudget: 0 };
+      (generationConfig as Record<string, unknown>).thinkingConfig = {
+        thinkingBudget: 0,
+      };
     } else if (
       settings.THINKING_BUDGET_MAP &&
-      settings.THINKING_BUDGET_MAP[model]
+      (settings.THINKING_BUDGET_MAP as Record<string, number>)[model]
     ) {
-      generationConfig.thinkingConfig = {
-        thinkingBudget: settings.THINKING_BUDGET_MAP[model],
+      (generationConfig as Record<string, unknown>).thinkingConfig = {
+        thinkingBudget: (
+          settings.THINKING_BUDGET_MAP as Record<string, number>
+        )[model],
       };
     }
   }
@@ -178,25 +176,101 @@ export async function buildGeminiRequest(
   };
 
   if (model.endsWith("-image") || model.endsWith("-image-generation")) {
-    delete payload.systemInstruction;
-    payload.generationConfig.responseModalities = ["Text", "Image"];
+    delete (payload as Record<string, unknown>).systemInstruction;
+    (payload.generationConfig as Record<string, unknown>).responseModalities = [
+      "Text",
+      "Image",
+    ];
   }
 
   return payload;
 }
 
-export function formatGoogleModelsToOpenAI(googleModels: any): any {
+export function formatGoogleModelsToOpenAI(
+  googleModels: Record<string, { name: string }[]>
+): Record<string, unknown> {
   if (!googleModels || !Array.isArray(googleModels.models)) {
     return { object: "list", data: [] };
   }
 
   return {
     object: "list",
-    data: googleModels.models.map((model: any) => ({
+    data: googleModels.models.map((model: { name: string }) => ({
       id: model.name.replace("models/", ""),
       object: "model",
       created: Date.now(),
       owned_by: "google",
     })),
   };
+}
+
+// --- OpenAI Compatibility Functions ---
+
+// Define the structure for OpenAI chat messages and requests
+export interface OpenAIChatMessage {
+  role: "user" | "assistant" | "system";
+  content: string;
+}
+
+export interface OpenAIChatRequest {
+  messages: OpenAIChatMessage[];
+  model?: string;
+  // Add other potential OpenAI request fields if needed
+}
+
+/**
+ * Converts an array of OpenAI-formatted messages to the Gemini 'contents' format.
+ * @param messages - An array of OpenAIChatMessage objects.
+ * @returns An array of Gemini-formatted content objects.
+ */
+export function openAiToGeminiRequest(
+  messages: OpenAIChatMessage[]
+): Content[] {
+  // Gemini API uses 'model' for the assistant's role.
+  // We'll map 'assistant' to 'model' and 'user'/'system' to 'user'.
+  const contents: Content[] = messages.map((msg) => {
+    return {
+      role: msg.role === "assistant" ? "model" : "user",
+      parts: [{ text: msg.content }],
+    };
+  });
+  return contents;
+}
+
+/**
+ * Transforms a single Gemini API response chunk into an OpenAI-compatible stream chunk.
+ * @param geminiChunk - The chunk from the Gemini API response.
+ * @param model - The model name to include in the OpenAI chunk.
+ * @returns A string formatted as a Server-Sent Event for the OpenAI stream.
+ */
+export function geminiToOpenAiStreamChunk(
+  geminiChunk: {
+    candidates?: {
+      content?: { parts?: { text?: string }[] };
+      finishReason?: string;
+    }[];
+  },
+  model: string
+): string {
+  const text = geminiChunk.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+  // OpenAI stream chunks have a specific format.
+  const openAIChunk = {
+    id: `chatcmpl-${Date.now()}`, // Create a unique ID for the chunk
+    object: "chat.completion.chunk",
+    created: Math.floor(Date.now() / 1000),
+    model: model,
+    choices: [
+      {
+        index: 0,
+        delta: {
+          content: text,
+        },
+        finish_reason: geminiChunk.candidates?.[0]?.finishReason || null,
+      },
+    ],
+  };
+
+  // Format as a Server-Sent Event (SSE)
+  return `data: ${JSON.stringify(openAIChunk)}\n\n`;
 }

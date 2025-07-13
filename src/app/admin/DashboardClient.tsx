@@ -20,7 +20,31 @@ const StatCard = ({
   </div>
 );
 
-export function DashboardClient({ stats }: { stats: any }) {
+interface KeyInfo {
+  key: string;
+  failCount: number;
+  isWorking: boolean;
+  usage?: {
+    total: number;
+    success: number;
+    failed: number;
+  };
+}
+
+interface DashboardStats {
+  totalKeys: number;
+  validKeyCount: number;
+  invalidKeyCount: number;
+  totalCalls: number;
+  validKeys: KeyInfo[];
+  invalidKeys: KeyInfo[];
+  settings: {
+    MAX_FAILURES: number;
+    ALLOWED_TOKENS: string;
+  };
+}
+
+export function DashboardClient({ stats }: { stats: DashboardStats }) {
   const searchParams = useSearchParams();
   const initialTab = searchParams.get("tab") || "dashboard";
   const [activeTab, setActiveTab] = useState(initialTab);

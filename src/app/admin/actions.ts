@@ -48,8 +48,8 @@ export async function addApiKeys(keysString: string) {
     return {
       success: `${newKeys.length} new API key(s) added successfully.`,
     };
-  } catch (error) {
-    console.error("Failed to add API keys:", error);
+  } catch (_error) {
+    console.error("Failed to add API keys:", _error);
     return { error: "Failed to add API keys to the database." };
   }
 }
@@ -67,7 +67,7 @@ export async function deleteApiKeys(keys: string[]) {
     return {
       success: `${deleteResponse.count} API key(s) deleted successfully.`,
     };
-  } catch (error) {
+  } catch {
     return { error: "Failed to delete API keys." };
   }
 }
@@ -83,7 +83,7 @@ export async function resetKeysFailures(keys: string[]) {
     return {
       success: `${keys.length} key(s) failure count reset successfully.`,
     };
-  } catch (error) {
+  } catch {
     return { error: "Failed to reset key failure counts." };
   }
 }
@@ -103,7 +103,7 @@ export async function getKeyUsageDetails(apiKey: string) {
       success: successfulCalls,
       failed: failedCalls,
     };
-  } catch (error) {
+  } catch {
     return { error: "Failed to fetch key usage details." };
   }
 }
@@ -137,60 +137,81 @@ interface LogFilters {
   limit?: number;
 }
 
+type RequestLogWhere = import("@prisma/client").Prisma.RequestLogWhereInput;
+type ErrorLogWhere = import("@prisma/client").Prisma.ErrorLogWhereInput;
+
 export async function getLogs(filters: LogFilters) {
   const { logType, search, page = 1, limit = 10 } = filters;
-  const where: any = {};
-
-  if (search) {
-    if (logType === "request") {
-      where.apiKey = { contains: search };
-    } else {
-      where.OR = [
-        { apiKey: { contains: search } },
-        { errorType: { contains: search } },
-        { errorMessage: { contains: search } },
-      ];
-    }
-  }
 
   try {
-    const model = logType === "request" ? prisma.requestLog : prisma.errorLog;
-    const total = await (model as any).count({ where });
-    const logs = await (model as any).findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * limit,
-      take: limit,
-    });
-    return { logs, total };
-  } catch (error) {
-    console.error(`Failed to fetch ${logType} logs:`, error);
+    if (logType === "request") {
+      const where: RequestLogWhere = {};
+      if (search) {
+        where.apiKey = { contains: search };
+      }
+      const total = await prisma.requestLog.count({ where });
+      const logs = await prisma.requestLog.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * limit,
+        take: limit,
+      });
+      return { logs, total };
+    } else {
+      const where: ErrorLogWhere = {};
+      if (search) {
+        where.OR = [
+          { apiKey: { contains: search } },
+          { errorType: { contains: search } },
+          { errorMessage: { contains: search } },
+        ];
+      }
+      const total = await prisma.errorLog.count({ where });
+      const logs = await prisma.errorLog.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * limit,
+        take: limit,
+      });
+      return { logs, total };
+    }
+  } catch (_error) {
+    console.error(`Failed to fetch ${logType} logs:`, _error);
     return { error: `Failed to fetch ${logType} logs.` };
   }
 }
 
 export async function deleteLogs(logIds: number[], logType: LogType) {
   try {
-    const model = logType === "request" ? prisma.requestLog : prisma.errorLog;
-    const response = await (model as any).deleteMany({
-      where: { id: { in: logIds } },
-    });
+    let response;
+    if (logType === "request") {
+      response = await prisma.requestLog.deleteMany({
+        where: { id: { in: logIds } },
+      });
+    } else {
+      response = await prisma.errorLog.deleteMany({
+        where: { id: { in: logIds } },
+      });
+    }
     revalidatePath("/admin");
     return { success: `${response.count} log(s) deleted.` };
-  } catch (error) {
-    console.error(`Failed to delete ${logType} logs:`, error);
+  } catch (_error) {
+    console.error(`Failed to delete ${logType} logs:`, _error);
     return { error: `Failed to delete ${logType} logs.` };
   }
 }
 
 export async function clearAllLogs(logType: LogType) {
   try {
-    const model = logType === "request" ? prisma.requestLog : prisma.errorLog;
-    await (model as any).deleteMany({});
+    if (logType === "request") {
+      await prisma.requestLog.deleteMany({});
+    } else {
+      await prisma.errorLog.deleteMany({});
+    }
     revalidatePath("/admin");
     return { success: `All ${logType} logs cleared.` };
-  } catch (error) {
-    console.error(`Failed to clear ${logType} logs:`, error);
+  } catch (_error) {
+    console.error(`Failed to clear ${logType} logs:`, _error);
     return { error: `Failed to clear ${logType} logs.` };
   }
 }

@@ -1,4 +1,5 @@
 import { getKeyManager } from "@/lib/key-manager";
+import { Agent } from "http";
 import { HttpsProxyAgent } from "https-proxy-agent";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "./db";
@@ -11,6 +12,11 @@ import { getSettings } from "./settings";
 
 const GOOGLE_API_HOST =
   process.env.GOOGLE_API_HOST || "https://generativelanguage.googleapis.com";
+
+interface FetchOptions extends RequestInit {
+  agent?: Agent;
+  duplex?: "half";
+}
 
 export async function proxyRequest(request: NextRequest, pathPrefix: string) {
   const startTime = Date.now();
@@ -35,18 +41,17 @@ export async function proxyRequest(request: NextRequest, pathPrefix: string) {
     const geminiRequestBody = await buildGeminiRequest(model, requestBody);
     const settings = await getSettings();
 
-    const fetchOptions: RequestInit = {
+    const fetchOptions: FetchOptions = {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(geminiRequestBody),
-      // @ts-ignore
       duplex: "half",
     };
 
     if (settings.PROXY_URL) {
-      (fetchOptions as any).agent = new HttpsProxyAgent(settings.PROXY_URL);
+      fetchOptions.agent = new HttpsProxyAgent(settings.PROXY_URL);
     }
 
     const geminiResponse = await fetch(geminiUrl, fetchOptions);
@@ -109,14 +114,16 @@ export async function proxyRequest(request: NextRequest, pathPrefix: string) {
     }
 
     return NextResponse.json(data, { status: geminiResponse.status });
-  } catch (error: any) {
+  } catch (error) {
     statusCode = 500;
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
     if (
-      error.message.includes("No API keys available") ||
-      error.message.includes("KeyManager must be initialized")
+      errorMessage.includes("No API keys available") ||
+      errorMessage.includes("KeyManager must be initialized")
     ) {
       logger.warn(
-        { error: error.message },
+        { error: errorMessage },
         "KeyManager initialization failed. No keys were loaded from DB or ENV."
       );
       return NextResponse.json(
@@ -131,9 +138,9 @@ export async function proxyRequest(request: NextRequest, pathPrefix: string) {
       );
     }
 
-    if (error.message.includes("All API keys are currently failing")) {
+    if (errorMessage.includes("All API keys are currently failing")) {
       logger.error(
-        { error: error.message },
+        { error: errorMessage },
         "All available API keys are marked as failing."
       );
       return NextResponse.json(

@@ -8,7 +8,7 @@ export const ConfigCard = ({
   settings,
 }: {
   settings: {
-    MAX_FAILURES: string;
+    MAX_FAILURES: number;
     ALLOWED_TOKENS: string;
   };
 }) => (
@@ -33,7 +33,7 @@ export const ConfigCard = ({
             type="number"
             name="maxFailures"
             id="maxFailures"
-            defaultValue={settings.MAX_FAILURES}
+            defaultValue={String(settings.MAX_FAILURES)}
             className="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-l-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm border-gray-300"
             min="1"
           />
