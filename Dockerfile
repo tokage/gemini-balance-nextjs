@@ -13,6 +13,8 @@ COPY package.json pnpm-lock.yaml* ./
 # Copy prisma schema to be available for generate
 COPY prisma ./prisma
 RUN corepack enable pnpm && pnpm i --frozen-lockfile
+# Clean up pnpm cache
+RUN pnpm store prune
 
 # Rebuild the source code only when needed
 FROM base AS builder
@@ -41,7 +43,12 @@ ENV ALLOWED_TOKENS=$ALLOWED_TOKENS \
     GOOGLE_API_HOST=$GOOGLE_API_HOST \
     MAX_FAILURES=$MAX_FAILURES
 
+# Build Project
 RUN corepack enable pnpm && pnpm build
+
+# Copy entrypoint script
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
 
 # Production image, copy all the files and run next
 FROM base AS runner
@@ -51,26 +58,23 @@ ENV NODE_ENV production
 # Uncomment the following line in case you want to disable telemetry during runtime.
 # ENV NEXT_TELEMETRY_DISABLED 1
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+# Create a non-root user and group
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
 
+# Copy application code and artifacts
 COPY --from=builder /app/public ./public
-
-# Set the correct permission for prerender cache
-RUN mkdir .next
-RUN chown nextjs:nodejs .next
-
-# Automatically leverage output traces to reduce image size
-# https://nextjs.org/docs/advanced-features/output-file-tracing
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder /app/entrypoint.sh /app/entrypoint.sh
 
-# Copy prisma schema and client for production
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules/.prisma/client ./node_modules/.prisma/client
+# Clean up node_modules to reduce image size
+RUN find ./node_modules -type f -name "*.md" -delete && \
+    find ./node_modules -type f -name "*.map" -delete
 
-# Ensure the nextjs user has ownership of the prisma directory
-RUN chown -R nextjs:nodejs /app/prisma
+# Create prisma directory and set permissions
+RUN mkdir -p /app/prisma && \
+    chown -R nextjs:nodejs /app/prisma .next
 
 USER nextjs
 
@@ -81,4 +85,4 @@ ENV HOSTNAME "0.0.0.0"
 
 # server.js is created by next build from the standalone output
 # https://nextjs.org/docs/pages/api-reference/next-config-js/output
-CMD ["node", "server.js"]
+CMD ["/app/entrypoint.sh"]
