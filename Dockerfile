@@ -44,10 +44,7 @@ ENV ALLOWED_TOKENS=$ALLOWED_TOKENS \
     MAX_FAILURES=$MAX_FAILURES
 
 # Build Project
-RUN corepack enable pnpm && pnpm build
-
-# Create a backup of the prisma directory
-RUN cp -r ./prisma /app/prisma.bak
+RUN corepack enable pnpm && pnpm prisma generate && pnpm build
 
 # Copy entrypoint script
 COPY entrypoint.sh /app/entrypoint.sh
@@ -70,15 +67,13 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder /app/entrypoint.sh /app/entrypoint.sh
-COPY --from=builder /app/prisma.bak /app/prisma.bak
 
-# Clean up node_modules to reduce image size
-RUN find ./node_modules -type f -name "*.md" -delete && \
-    find ./node_modules -type f -name "*.map" -delete
+# Explicitly copy Prisma schema and client
+COPY --from=builder /app/prisma/schema.prisma ./prisma/schema.prisma
+COPY --from=builder /app/node_modules/.prisma/client ./node_modules/.prisma/client
 
-# Create prisma directory and set permissions
-RUN mkdir -p /app/prisma && \
-    chown -R nextjs:nodejs /app/prisma /app/prisma.bak .next
+# Set ownership for the app directory
+RUN chown -R nextjs:nodejs /app
 
 USER nextjs
 
