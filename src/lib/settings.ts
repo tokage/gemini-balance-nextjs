@@ -1,7 +1,9 @@
 import { prisma } from "./db";
+import logger from "./logger";
 
 // 定义默认配置
 const defaultSettings = {
+  AUTH_TOKEN: "", // Add AUTH_TOKEN to the defaults
   ALLOWED_TOKENS: "",
   MAX_FAILURES: "3",
   PROXY_URL: "", // Optional proxy URL
@@ -18,7 +20,8 @@ const defaultSettings = {
 };
 
 // Define a more specific type for settings to help with parsing
-type ParsedSettings = {
+export type ParsedSettings = {
+  AUTH_TOKEN: string;
   ALLOWED_TOKENS: string;
   MAX_FAILURES: number;
   PROXY_URL: string;
@@ -28,21 +31,24 @@ type ParsedSettings = {
 };
 
 type Settings = typeof defaultSettings;
-let settingsCache: Settings | null = null;
-
 /**
  * 获取所有配置项。
- * 优先从缓存读取，否则从数据库加载，并处理环境变量和默认值。
+ * 从数据库加载，并处理环境变量和默认值。
+ * Note: Caching was removed to prevent stale data issues in serverless environments.
  */
 export async function getSettings(): Promise<ParsedSettings> {
-  // This function now returns a parsed object, not the raw string-based one.
-  // Caching for the raw settings is still useful.
-  if (settingsCache) {
-    return parseSettings(settingsCache);
+  let settingsMap = new Map<string, string>();
+  try {
+    const settingsFromDb = await prisma.setting.findMany();
+    settingsMap = new Map(settingsFromDb.map((s) => [s.key, s.value]));
+  } catch (error) {
+    // This can happen on the first run if the database is not yet migrated.
+    // We can safely ignore it and proceed with defaults.
+    logger.warn(
+      "Could not fetch settings from database, proceeding with defaults. This is expected on first run.",
+      error
+    );
   }
-
-  const settingsFromDb = await prisma.setting.findMany();
-  const settingsMap = new Map(settingsFromDb.map((s) => [s.key, s.value]));
 
   const resolvedSettings: Settings = { ...defaultSettings };
 
@@ -60,12 +66,12 @@ export async function getSettings(): Promise<ParsedSettings> {
     resolvedSettings[key] = value;
   }
 
-  settingsCache = resolvedSettings;
-  return parseSettings(settingsCache);
+  return parseSettings(resolvedSettings);
 }
 
 function parseSettings(settings: Settings): ParsedSettings {
   return {
+    AUTH_TOKEN: settings.AUTH_TOKEN,
     ALLOWED_TOKENS: settings.ALLOWED_TOKENS,
     MAX_FAILURES: parseInt(settings.MAX_FAILURES, 10),
     PROXY_URL: settings.PROXY_URL,
@@ -77,10 +83,10 @@ function parseSettings(settings: Settings): ParsedSettings {
 }
 
 /**
- * 清空配置缓存，强制下次调用时重新从数据库加载。
+ * 清空配置缓存（已废弃，因为缓存已被移除）。
  */
 export function resetSettings(): void {
-  settingsCache = null;
+  // No-op, cache was removed.
 }
 
 /**
@@ -94,5 +100,5 @@ export async function updateSetting(key: string, value: string) {
     update: { value },
     create: { key, value },
   });
-  resetSettings(); // 更新后清空缓存
+  // No need to call resetSettings() as the cache has been removed.
 }

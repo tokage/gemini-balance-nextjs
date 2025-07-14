@@ -21,19 +21,11 @@ COPY . .
 
 # Set build-time env vars
 ENV NEXT_TELEMETRY_DISABLED=1
-ARG ALLOWED_TOKENS
-ARG AUTH_TOKEN
-ARG DATABASE_URL
-ARG GEMINI_API_KEYS
-ARG GOOGLE_API_HOST
-ARG MAX_FAILURES
 
-ENV ALLOWED_TOKENS=$ALLOWED_TOKENS \
-    AUTH_TOKEN=$AUTH_TOKEN \
-    DATABASE_URL=$DATABASE_URL \
-    GEMINI_API_KEYS=$GEMINI_API_KEYS \
-    GOOGLE_API_HOST=$GOOGLE_API_HOST \
-    MAX_FAILURES=$MAX_FAILURES
+# DATABASE_URL is required at build time for `prisma generate`.
+# All other settings are managed via the UI at runtime.
+ARG DATABASE_URL
+ENV DATABASE_URL=$DATABASE_URL
 
 # Generate Prisma client and build the project
 RUN corepack enable pnpm && pnpm prisma generate
@@ -59,7 +51,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 # Copy public assets
 COPY --from=builder /app/public ./public
-# Copy entrypoint script
+# Copy entrypoint
 COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 

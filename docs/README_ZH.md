@@ -21,24 +21,23 @@ You can read this document in [English](README.md).
 - **智能负载均衡**: 管理一个 Gemini API 密钥池，轮流使用密钥以分配请求负载。
 - **自动故障转移与重试**: 如果使用特定密钥的请求失败，系统会自动使用下一个可用密钥重试，确保服务的高可用性。
 - **持久化健康跟踪**: 监控密钥失败次数，自动将失败的密钥移出活动池，并将其状态同步到持久化数据库。
-- **Web UI 与管理仪表盘**:
-  - 一个用于测试的简单聊天界面。
-  - 位于 `/admin` 的管理仪表盘，用于查看密钥状态、管理设置和监控日志。
-- **数据库持久化**: 使用 Prisma 和 SQLite 数据库存储 API 密钥和应用设置。
+- **Web UI 与管理仪表盘**: 一个位于 `/admin` 的综合性管理后台，用于实时管理 API 密钥、调整系统设置和查看日志。
+- **动态化与持久化配置**: 所有的配置项（API 密钥、认证令牌等）都存储在持久化的 SQLite 数据库中，并可以通过 Web UI 进行动态修改，无需重启应用。
 - **安全身份验证**:
-  - 使用专用的 `AUTH_TOKEN` 保护管理仪表盘。
-  - 使用灵活的 `ALLOWED_TOKENS` 系统保护 API 端点。
+  - 使用动态的 `AUTH_TOKEN` 保护管理仪表盘。
+  - 使用灵活的 `ALLOWED_TOKENS` 系统保护 API 端点，所有令牌均通过 UI 进行管理。
+- **外部触发的健康检查**: 提供一个安全的 API 端点，供外部 cron 作业调用，以触发对非活动密钥的重新激活检查。
 
 ## 项目结构与代码导览
 
 为了更好地理解本项目，我们建议按以下顺序探索文件：
 
-1.  **`src/middleware.ts`**: 所有传入请求的入口点。该文件处理路由和身份验证逻辑，根据路径将流量引导至正确的处理程序。
-2.  **`src/lib/gemini-proxy.ts`**: 核心代理逻辑。它从 API 路由接收请求，获取一个可用的 API 密钥，并将请求转发给 Google Gemini API。
-3.  **`src/lib/key-manager.ts`**: `KeyManager` 类，负责所有 API 密钥管理，包括从环境和数据库加载密钥、轮换和失败跟踪。
-4.  **`src/app/{gemini,openai,v1beta}`**: 包含 API 路由的目录。这些路由非常轻量，将所有逻辑委托给中间件和代理。
-5.  **`src/app/admin`**: 管理仪表盘的代码，包括 UI 组件和用于管理应用的服务器端操作。
-6.  **`prisma/schema.prisma`**: 定义用于存储 API 密钥和设置的数据库 schema。
+1.  **`prisma/schema.prisma`**: 定义了数据库结构，用于存储 API 密钥 (`ApiKey`) 和动态配置 (`Setting`)。
+2.  **`src/lib/settings.ts`**: 负责从数据库中获取和缓存所有应用配置的服务。这是所有配置的“单一真实来源”。
+3.  **`src/lib/key-manager.ts`**: `KeyManager` 类，负责所有 API 密钥的管理。它**只从数据库**加载密钥，处理轮换和失败跟踪。
+4.  **`src/middleware.ts`**: 所有请求的入口。它使用 `settings.ts` 在每个请求中动态获取认证令牌。
+5.  **`src/app/admin`**: 管理后台的代码，包括 UI 组件（如 `KeyTable.tsx`, `ConfigForm.tsx`）和包含所有管理逻辑的 `actions.ts` 文件。
+6.  **`/api/cron/health-check`**: 一个安全的 API 端点，当被调用时，会触发对失效 API 密钥的健康检查。
 
 ## 快速上手
 
@@ -64,40 +63,14 @@ pnpm prisma migrate dev
 
 ### 3. 配置环境变量
 
-- 通过复制示例文件来创建一个 `.env.local` 文件：`cp .env.example .env.local`。
-- 打开 `.env.local` 并设置以下变量：
+创建一个 `.env.local` 文件。应用需要以下变量来连接数据库。
 
-```env
-# .env.local
+- **`DATABASE_URL`**: 您的数据库连接字符串。默认的 `pnpm prisma migrate dev` 命令会在 `prisma/dev.db` 创建一个 SQLite 数据库。
+  ```
+  DATABASE_URL="file:./prisma/dev.db"
+  ```
 
-# 1. Gemini API 密钥 (必需)
-# 您的 Google AI Gemini API 密钥，以逗号分隔。
-# 这些密钥将在首次运行时加载到数据库中。
-GEMINI_API_KEYS=your_gemini_key_1,your_gemini_key_2
-
-# 2. 管理仪表盘认证令牌 (必需)
-# 用于访问 /admin 管理面板的秘密令牌。
-AUTH_TOKEN=a_strong_and_secret_token_for_ui
-
-# 3. API 访问令牌 (可选)
-# 允许访问 API 端点的令牌列表，以逗号分隔。
-# 如果留空，您仍然可以使用您的 AUTH_TOKEN 访问 API。
-ALLOWED_TOKENS=user_token_1,user_token_2
-
-# 4. Google API 主机 (可选, 默认: https://generativelanguage.googleapis.com)
-# 可以被覆盖以使用代理或不同的区域端点。
-GOOGLE_API_HOST=https://generativelanguage.googleapis.com
-
-# 5. 密钥失败阈值 (可选, 默认: 3)
-# 在将密钥标记为无效之前，允许的最大连续失败次数。
-MAX_FAILURES=3
-
-# 6. 代理服务器地址 (可选)
-# 如果您的服务器位于 Gemini API 不支持的地区，
-# 您可以提供一个 HTTP/HTTPS 代理服务器地址来转发请求。
-# 示例: PROXY_URL=http://user:pass@host:port
-PROXY_URL=
-```
+仅当您需要为 Google API 使用代理时，您才可能需要设置 `GOOGLE_API_HOST`。所有其他设置都通过 Web UI 进行管理。
 
 ### 4. 运行开发服务器
 
@@ -107,96 +80,113 @@ PROXY_URL=
 pnpm dev
 ```
 
+### 5. 首次通过 Web UI 设置
+
+首次运行时，本应用没有任何 API 密钥或安全认证令牌。
+
+1.  **访问仪表盘**: 打开 [http://localhost:3000/admin](http://localhost:3000/admin)。系统将提示您输入密码。
+2.  **初始登录**: 由于 `AUTH_TOKEN` 初始为空，您可以**输入任何值**（或留空）并点击“Login”来登录。
+3.  **保护您的仪表盘**:
+    - 导航到 **Configuration** (配置) 标签页。
+    - 在 "Auth Token" 字段中，输入一个新的、强壮的、秘密的密码。
+    - 点击 "Save Configuration" (保存配置)。您将立即被登出。
+    - 使用您刚设置的新 `AUTH_TOKEN` 重新登录。
+4.  **添加 API 密钥**:
+    - 导航到 **Keys** (密钥) 标签页。
+    - 点击 "Add New Key" (新增密钥) 并粘贴您的 Gemini API 密钥。
+5.  **配置 API 访问**:
+    - 回到 **Configuration** (配置) 标签页。
+    - 在 "Allowed API Tokens" (允许的 API 令牌) 字段中，添加您希望授权给客户端应用的访问令牌。
+
+现在，您的网关已完全配置并准备就绪。
+
 ## 使用 Docker 部署
 
-本项目是一个**有状态应用**，需要一个数据库。提供的 `Dockerfile` 已为生产部署进行了优化，使用了 Next.js 的 `standalone` 输出模式，并包含一个健壮的自动化数据库迁移机制。
+本项目是一个**有状态应用**，需要一个持久化的数据库。项目提供的 `Dockerfile` 和 `docker-compose.yml` 已为生产部署进行了优化。
 
-### 生产环境部署 (例如，使用 Coolify)
+### 部署原则
 
-这是在生产环境中运行本应用的推荐方法。
+- **动态配置**: 应用被设计为在运行时通过 Web UI 进行配置。Docker 镜像本身是通用的，不包含任何秘密信息。
+- **数据持久化**: `docker-compose.yml` 文件已配置为将本地的 `./data` 目录挂载到容器内的 `/app/data` 目录。这确保了您的 SQLite 数据库（以及所有配置）在容器重启后依然存在。
+- **自动迁移**: `entrypoint.sh` 脚本会在每次容器启动时自动运行数据库迁移命令 (`prisma migrate deploy`)，确保您的数据库结构始终是最新版本。
 
-#### 1. 部署原则
+### 使用 Docker Compose 运行
 
-- **Standalone 输出**：`Dockerfile` 利用了 Next.js 的 `output: "standalone"` 特性来创建一个最小化的、为生产优化的镜像。`next.config.ts` 文件已配置为可以正确追踪并包含部署所需的 Prisma 文件。
-- **自动迁移与权限管理**：镜像使用一个 `entrypoint.sh` 脚本来解决关键的部署挑战：
-  1.  它以 `root` 用户身份启动，以修复由部署平台挂载的数据卷的权限问题。
-  2.  然后，它以权限较低的 `nextjs` 用户身份运行数据库迁移 (`npx prisma migrate deploy`)。
-  3.  最后，它以 `nextjs` 用户身份启动应用服务器。
-- **数据与配置分离**：应用被设计为将其数据库存储在一个专用的 `/app/data` 目录中，而 Prisma 的配置文件保留在 `/app/prisma`。这种分离是实现持久化数据存储而无部署错误的关键。
+1.  **创建并配置 `.env` 文件**:
 
-#### 2. 部署平台配置 (Coolify 示例)
+    为您的生产环境创建一个 `.env` 文件。`docker-compose.yml` 文件已配置为加载此文件。
 
-当从 GitHub Container Registry 部署预构建的镜像时，您需要在您的服务中配置两个关键设置：
+    - **`DATABASE_URL` (强制性)**: 此变量是必需的。Compose 设置已配置为将数据库放置在 `/app/data` 的持久卷中。
+    - **`CRON_SECRET` (推荐)**: 要使用外部健康检查功能，您必须设置一个安全的 secret token。
 
-1.  **卷挂载 (Volume Mount)**：
+    您的 `.env` 文件应如下所示：
 
-    - 将一个持久化卷挂载到容器的 `/app/data` 目录。
-    - **源 (Source)**：`your_persistent_storage` (例如，由 Coolify 管理的卷)
-    - **目标/挂载路径 (Target/Mount Path)**：`/app/data`
-    - **至关重要**：**不要**将卷挂载到 `/app/prisma`。这样做会隐藏镜像中内置的 schema 文件，并导致迁移命令失败。
+    ```env
+    # 强制性：生产数据库在容器内的路径
+    DATABASE_URL="file:/app/data/prod.db"
 
-2.  **环境变量 (Environment Variables)**：
-    - 将 `DATABASE_URL` 设置为指向**卷内**的数据库文件。必需值为 `file:/app/data/prod.db`。
-    - 设置所有其他所需的环境变量 (如 `GEMINI_API_KEYS`, `AUTH_TOKEN` 等)。
+    # 推荐：用于 cron 作业端点的长的、随机的 secret
+    CRON_SECRET="your-long-random-secret-token"
+    ```
 
-#### 3. 本地开发与 Docker Compose
+    仅当您需要覆盖默认值时，才需要添加像 `GOOGLE_API_HOST` 这样的其他变量。所有其他设置都在部署后通过 Web UI 进行管理。
 
-对于模拟生产环境的本地测试，您可以使用项目提供的 `docker-compose.yml` 文件。
+2.  **构建并运行容器**:
+
+    ```bash
+    docker-compose up --build -d
+    ```
+
+3.  **执行首次设置**: 遵循与本地开发指南中相同的“首次通过 Web UI 设置”步骤，但请使用您服务器的 IP 地址访问应用 (例如, `http://YOUR_SERVER_IP:3000`)。
+
+4.  **(可选) 配置 Cron 作业**: 为了启用失效 API 密钥的自动重新激活，请遵循下面的“外部 Cron 作业健康检查”部分的说明。
+
+## 外部 Cron 作业健康检查
+
+本应用依赖一个外部的 cron 作业来定期检查非活动 API 密钥的健康状况并重新激活它们。应用为此提供了一个安全的端点。
+
+### 1. 设置 Cron Secret
+
+为了保护 cron 端点，您必须设置 `CRON_SECRET` 环境变量。
+
+- 对于**本地开发**，请将其添加到您的 `.env.local` 文件中。
+- 对于**Docker 部署**，请按照“使用 Docker 部署”部分的说明将其添加到 `.env` 文件中。
+
+请为这个值选择一个长的、随机的且难以猜测的字符串。
+
+### 2. 配置您的 Cron 服务
+
+您需要在您的服务器上或使用第三方服务（如 `cron-job.org` 或您托管平台的功能，如 Coolify）来设置一个 cron 作业。
+
+该作业应配置为定期运行一个 `curl` 命令。我们建议**每小时运行一次**。
+
+以下是需要执行的命令：
 
 ```bash
-# 1. 确保您有一个包含环境变量的 .env 文件
-cp .env.local .env
-
-# 2. 在后台构建并运行容器
-docker-compose up --build -d
+curl -X GET -H "Authorization: Bearer YOUR_CRON_SECRET" http://YOUR_APP_URL/api/cron/health-check
 ```
 
-`docker-compose.yml` 文件已预先配置为使用生产部署策略：它将本地的 `./data` 目录挂载到容器的 `/app/data`，并相应地设置 `DATABASE_URL`。`entrypoint.sh` 脚本将在首次启动时自动处理数据库迁移。
+- 将 `YOUR_CRON_SECRET` 替换为您在环境变量中设置的相同 secret 值。
+- 将 `YOUR_APP_URL` 替换为您应用的公共 URL（例如，本地测试时为 `http://localhost:3000`，生产环境中为 `https://your-domain.com`）。
+
+此设置可确保您的密钥得到定期检查和维护，而无需在应用内部集成调度程序。
 
 ## 使用 GitHub Actions 进行 CI/CD
 
-本项目包含一个 GitHub Actions 工作流，它会在代码被推送到 `master` 分支时，自动构建一个 Docker 镜像并将其推送到 **GitHub Container Registry (ghcr.io)**。
+项目包含的 GitHub Actions 工作流是为现代化的、无需配置的部署流程而设计的。
 
-### 1. Fork 本仓库
+- **它做什么**: 每当有代码推送到 `master` 分支时，该 action 会构建一个**通用的、无配置的** Docker 镜像，并将其推送到 GitHub Container Registry (`ghcr.io`)。
+- **无需 Secrets**: 该工作流**不**需要任何诸如 `GEMINI_API_KEYS` 或 `AUTH_TOKEN` 之类的秘密信息。它构建的镜像是普适的。
+- **如何使用**:
+  1.  Fork 本仓库。
+  2.  GitHub Action 将自动运行，并将镜像推送到 `ghcr.io/YOUR_USERNAME/gemini-balance-nextjs`。
+  3.  在您的服务器上，您只需拉取最新的镜像 (`docker pull ghcr.io/YOUR_USERNAME/gemini-balance-nextjs:latest`) 并重启您的 Docker Compose 服务即可完成更新。
+  4.  为了实现全自动化部署，您可以使用像 [Watchtower](https://containrrr.dev/watchtower/) 这样的服务，或您托管平台（如 Coolify）提供的 webhook，来自动拉取新镜像并重新部署。
 
-首先，将此仓库 fork 到您自己的 GitHub 账户下。
+### 6. 探索应用
 
-### 2. 配置 GitHub Secrets
-
-工作流需要您在 GitHub 仓库的设置中（`Settings` > `Secrets and variables` > `Actions`）配置一些 secrets，用于构建镜像和触发部署。
-
-**Docker 构建所需 Secrets:**
-这些 secrets 会作为构建参数传递给 Docker，并嵌入到您的镜像中。
-
-- `GEMINI_API_KEYS`: 您的 Gemini API 密钥，以逗号分隔。
-- `AUTH_TOKEN`: 用于管理仪表盘的秘密令牌。
-- `DATABASE_URL`: 您的数据库连接字符串。对于生产环境，应指向持久化卷中的文件，例如 `file:/app/data/prod.db`。
-- `ALLOWED_TOKENS` (可选): API 访问令牌，以逗号分隔。
-- `MAX_FAILURES` (可选): 密钥失败阈值。
-- `GOOGLE_API_HOST` (可选): 自定义的 Google API 主机。
-
-**用于自动重新部署 (可选):**
-如果您使用像 Coolify 这样的托管服务，您可以配置 webhook，以便在推送新镜像时自动重新部署您的应用。
-
-- `COOLIFY_WEBHOOK`: Coolify 提供的 webhook URL。
-- `COOLIFY_TOKEN`: Coolify webhook 的认证令牌。
-
-### 3. 工作原理
-
-- 工作流定义在 `.github/workflows/deploy.yml` 文件中。
-- 每当有代码推送到 `master` 分支时，该 action 将会：
-  1. 检出代码。
-  2. 登录到 GitHub Container Registry (`ghcr.io`)。
-  3. 构建 Docker 镜像，并注入您配置的 secrets。
-  4. 将镜像推送到 `ghcr.io`，并将其标记为 `ghcr.io/YOUR_USERNAME/gemini-balance-nextjs:latest` 以及其他基于 git 的标签。
-  5. (可选) 通过配置的 webhook 在您的托管服务上触发重新部署。
-
-之后，您可以在您的服务器上拉取此镜像，或配置您的托管服务从 `ghcr.io` 自动拉取，以部署最新版本。
-
-### 5. 探索应用
-
-- **管理仪表盘**: 打开 [http://localhost:3000/admin](http://localhost:3000/admin) 并使用您的 `AUTH_TOKEN` 登录。在这里您可以看到 `GEMINI_API_KEYS` 的状态。
-- **API 端点**: 使用 `curl` 或 Postman 等工具与 API 端点交互，请提供 `ALLOWED_TOKENS` 中的令牌或您的 `AUTH_TOKEN`。
+- **管理仪表盘**: 打开 [http://localhost:3000/admin](http://localhost:3000/admin) 并使用您在 UI 中配置的 `AUTH_TOKEN` 登录。
+- **API 端点**: 使用 `curl` 或 Postman 等工具与 API 端点交互，请提供您在“Allowed API Tokens”中配置的令牌。
 
 **Gemini/v1beta `curl` 示例:**
 

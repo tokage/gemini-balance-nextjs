@@ -21,24 +21,23 @@ This version goes beyond a simple proxy, offering a robust feature set including
 - **Intelligent Load Balancing**: Manages a pool of Gemini API keys, rotating them to distribute request loads.
 - **Automatic Failover & Retry**: If a request fails, it automatically retries with the next available key, ensuring high availability.
 - **Persistent Health Tracking**: Monitors key failures, automatically sidelining failing keys and syncing their status to a persistent database.
-- **Web UI & Management Dashboard**:
-  - A simple chat interface for testing.
-  - An admin dashboard at `/admin` to view key status, manage settings, and monitor logs.
-- **Database Persistence**: Uses Prisma and a SQLite database to store API keys and application settings.
+- **Web UI & Management Dashboard**: A comprehensive admin dashboard at `/admin` for real-time management of API keys, system settings, and log viewing.
+- **Dynamic & Persistent Configuration**: All configurations (API keys, auth tokens, etc.) are stored in a persistent SQLite database and can be modified on-the-fly via the Web UI without requiring an application restart.
 - **Secure Authentication**:
-  - Protects the admin dashboard with a dedicated `AUTH_TOKEN`.
-  - Secures API endpoints with a flexible system of `ALLOWED_TOKENS`.
+  - Protects the admin dashboard with a dynamic `AUTH_TOKEN`.
+  - Secures API endpoints with a flexible system of `ALLOWED_TOKENS`, all managed through the UI.
+- **Externally Triggered Health Checks**: Provides a secure API endpoint for an external cron job to trigger the reactivation check for inactive keys.
 
 ## Project Structure & Code Guide
 
 To understand the project, we recommend exploring the files in the following order:
 
-1.  **`src/middleware.ts`**: The entry point for all incoming requests. This file handles routing and authentication logic, directing traffic to the correct handler based on the path.
-2.  **`src/lib/gemini-proxy.ts`**: The core proxying logic. It receives requests from the API routes, retrieves a working API key, and forwards the request to the Google Gemini API.
-3.  **`src/lib/key-manager.ts`**: The `KeyManager` class, responsible for all API key management, including loading keys from the environment and database, rotation, and failure tracking.
-4.  **`src/app/{gemini,openai,v1beta}`**: Directories containing the API routes. These routes are lightweight and delegate all logic to the middleware and proxy.
-5.  **`src/app/admin`**: The code for the admin dashboard, including the UI components and server-side actions for managing the application.
-6.  **`prisma/schema.prisma`**: Defines the database schema for storing API keys and settings.
+1.  **`prisma/schema.prisma`**: Defines the database schema for storing API keys (`ApiKey`) and dynamic configurations (`Setting`).
+2.  **`src/lib/settings.ts`**: The service responsible for fetching and caching all application settings from the database. This is the single source of truth for configuration.
+3.  **`src/lib/key-manager.ts`**: The `KeyManager` class, responsible for all API key management. It loads keys **exclusively from the database**, handles rotation, and tracks failures.
+4.  **`src/middleware.ts`**: The entry point for all incoming requests. It uses `settings.ts` to fetch authentication tokens dynamically for every request.
+5.  **`src/app/admin`**: The code for the admin dashboard, including the UI components (`KeyTable.tsx`, `ConfigForm.tsx`, etc.) and the `actions.ts` file containing all server-side logic for management.
+6.  **`/api/cron/health-check`**: A secure API endpoint that, when called, triggers a health check to reactivate failing API keys.
 
 ## Getting Started
 
@@ -64,40 +63,14 @@ This will create a `prisma/dev.db` file.
 
 ### 3. Configure Environment Variables
 
-- Create a `.env.local` file by copying the example: `cp .env.example .env.local`.
-- Open `.env.local` and set the following variables:
+Create a `.env.local` file. The following variable is required for the application to connect to the database.
 
-```env
-# .env.local
+- **`DATABASE_URL`**: The connection string for your database. The default `pnpm prisma migrate dev` command will create a SQLite database at `prisma/dev.db`.
+  ```
+  DATABASE_URL="file:./prisma/dev.db"
+  ```
 
-# 1. Gemini API Keys (Required)
-# Comma-separated list of your Google AI Gemini API keys.
-# These are loaded into the database on the first run.
-GEMINI_API_KEYS=your_gemini_key_1,your_gemini_key_2
-
-# 2. Admin Dashboard Authentication Token (Required)
-# A secret token to access the admin panel at /admin.
-AUTH_TOKEN=a_strong_and_secret_token_for_ui
-
-# 3. API Access Tokens (Optional)
-# Comma-separated list of tokens allowed to access the API endpoints.
-# If you leave this blank, you can still use your AUTH_TOKEN for API access.
-ALLOWED_TOKENS=user_token_1,user_token_2
-
-# 4. Google API Host (Optional, Default: https://generativelanguage.googleapis.com)
-# Can be overridden to use a proxy or a different regional endpoint.
-GOOGLE_API_HOST=https://generativelanguage.googleapis.com
-
-# 5. Key Failure Threshold (Optional, Default: 3)
-# Maximum number of consecutive failures before a key is marked as invalid.
-MAX_FAILURES=3
-
-# 6. Proxy URL (Optional)
-# If your server is in a region not supported by the Gemini API,
-# you can provide an HTTP/HTTPS proxy URL to route requests through.
-# Example: PROXY_URL=http://user:pass@host:port
-PROXY_URL=
-```
+You might also set `GOOGLE_API_HOST` if you need to use a proxy for the Google API. All other settings are managed via the Web UI.
 
 ### 4. Run the Development Server
 
@@ -107,96 +80,104 @@ Start the Next.js development server.
 pnpm dev
 ```
 
+### 5. First-Time Setup via Web UI
+
+On the first run, the application has no API keys or secure authentication tokens.
+
+1.  **Access the Dashboard**: Open [http://localhost:3000/admin](http://localhost:3000/admin). You will be prompted for a password.
+2.  **Initial Login**: Since the `AUTH_TOKEN` is initially empty, you must log in by **entering a new, non-empty secret token**. This first token you enter will automatically become the permanent admin password for the system.
+3.  **Add API Keys**: After logging in, navigate to the **Keys** tab and click "Add New Key" to paste your Gemini API keys.
+4.  **Configure API Access**: Go to the **Configuration** tab and add any tokens you want to grant to your client applications in the "Allowed API Tokens" field.
+
+Your gateway is now fully configured and ready to use.
+
 ## Deployment with Docker
 
-This project is a **stateful application** that requires a database. The provided `Dockerfile` is optimized for production deployment using Next.js's `standalone` output mode, and includes a robust mechanism for automated database migration.
+This project is a **stateful application** that requires a persistent database. The provided `Dockerfile` and `docker-compose.yml` are optimized for production deployment.
 
-### Production Deployment (e.g., with Coolify)
+### Deployment Principles
 
-This is the recommended way to run the application in production.
+- **Dynamic Configuration**: The application is designed to be configured at runtime via the Web UI. The Docker image is generic and does not contain any secrets.
+- **Persistent Data**: The `docker-compose.yml` file is configured to mount a local `./data` directory to `/app/data` inside the container. This ensures that your SQLite database (and all your settings) persists across container restarts.
+- **Automated Migrations**: An `entrypoint.sh` script automatically runs database migrations (`prisma migrate deploy`) every time the container starts, ensuring your schema is always up-to-date.
 
-#### 1. Deployment Principles
+### Running with Docker Compose
 
-- **Standalone Output**: The `Dockerfile` leverages Next.js's `output: "standalone"` feature to create a minimal, production-optimized image. The `next.config.ts` is configured to correctly trace and include the necessary Prisma files in this output.
-- **Automated Migrations & Permissions**: The image uses an `entrypoint.sh` script to solve critical deployment challenges:
-  1.  It runs as `root` initially to fix permissions on the data volume that may be mounted by the deployment platform.
-  2.  It then runs database migrations (`npx prisma migrate deploy`) as the non-root `nextjs` user.
-  3.  Finally, it starts the application server as the non-root `nextjs` user.
-- **Separation of Data and Configuration**: The application is designed to store its database in a dedicated `/app/data` directory, while Prisma's configuration files remain in `/app/prisma`. This separation is key to enabling persistent data storage without deployment errors.
+1.  **Create and configure the `.env` file**:
 
-#### 2. Deployment Platform Configuration (Coolify Example)
+    Create a `.env` file for your production environment. The `docker-compose.yml` file is configured to load this file.
 
-When deploying the pre-built image from GitHub Container Registry, you need to configure two crucial settings in your deployment service:
+    - **`DATABASE_URL` (Mandatory)**: This variable is required. The Compose setup is configured to place the database in a persistent volume at `/app/data`.
+    - **`CRON_SECRET` (Recommended)**: To use the external health check feature, you must set a secure secret token.
 
-1.  **Volume Mount**:
+    Your `.env` file should look like this:
 
-    - Mount a persistent volume to the container's `/app/data` directory.
-    - **Source**: `your_persistent_storage` (e.g., a volume managed by Coolify)
-    - **Target/Mount Path**: `/app/data`
-    - **CRITICAL**: Do **not** mount a volume to `/app/prisma`. Mounting a volume to `/app/prisma` will hide the schema file built into the image and cause the migration to fail.
+    ```env
+    # Mandatory: Path for the production database inside the container
+    DATABASE_URL="file:/app/data/prod.db"
 
-2.  **Environment Variables**:
-    - Set `DATABASE_URL` to point to the database file **inside the volume**. The required value is `file:/app/data/prod.db`.
-    - Set all other required environment variables (`GEMINI_API_KEYS`, `AUTH_TOKEN`, etc.).
+    # Recommended: A long, random secret for the cron job endpoint
+    CRON_SECRET="your-long-random-secret-token"
+    ```
 
-#### 3. Local Development with Docker Compose
+    You only need to add other variables like `GOOGLE_API_HOST` if you need to override the defaults. All other settings are managed via the Web UI after deployment.
 
-For local testing that mimics the production setup, you can use the provided `docker-compose.yml` file.
+2.  **Build and run the container**:
+
+    ```bash
+    docker-compose up --build -d
+    ```
+
+3.  **Perform First-Time Setup**: Follow the same "First-Time Setup via Web UI" steps as in the local development guide, but access the application at the server's IP address (e.g., `http://YOUR_SERVER_IP:3000`).
+
+4.  **(Optional) Configure Cron Job**: To enable automatic reactivation of failed API keys, follow the instructions in the "External Cron Job for Health Checks" section below.
+
+## External Cron Job for Health Checks
+
+This application relies on an external cron job to periodically check the health of inactive API keys and reactivate them. The app provides a secure endpoint for this purpose.
+
+### 1. Set the Cron Secret
+
+To protect the cron endpoint, you must set the `CRON_SECRET` environment variable.
+
+- For **local development**, add it to your `.env.local` file.
+- For **Docker deployment**, add it to the `.env` file as described in the "Deployment with Docker" section.
+
+Choose a long, random, and hard-to-guess string for this value.
+
+### 2. Configure Your Cron Service
+
+You need to set up a cron job on your server or using a third-party service (like `cron-job.org` or a feature of your hosting platform like Coolify).
+
+The job should be configured to run a `curl` command periodically. We recommend running it **once every hour**.
+
+Here is the command to execute:
 
 ```bash
-# 1. Make sure you have a .env file with your variables
-cp .env.local .env
-
-# 2. Build and run the container in the background
-docker-compose up --build -d
+curl -X GET -H "Authorization: Bearer YOUR_CRON_SECRET" http://YOUR_APP_URL/api/cron/health-check
 ```
 
-The `docker-compose.yml` is pre-configured to use the production deployment strategy: it mounts a local `./data` directory to the container's `/app/data` and sets the `DATABASE_URL` accordingly. The `entrypoint.sh` script will handle the database migration automatically on the first start.
+- Replace `YOUR_CRON_SECRET` with the same secret value you set in your environment variables.
+- Replace `YOUR_APP_URL` with the public URL of your application (e.g., `http://localhost:3000` for local testing, or `https://your-domain.com` in production).
+
+This setup ensures that your keys are regularly checked and maintained without requiring a scheduler inside the application itself.
 
 ## CI/CD with GitHub Actions
 
-This project includes a GitHub Actions workflow to automatically build and push a Docker image to the **GitHub Container Registry (ghcr.io)** whenever changes are pushed to the `master` branch.
+The included GitHub Actions workflow is designed for a modern, configuration-free deployment pipeline.
 
-### 1. Fork the Repository
+- **What it Does**: On every push to the `master` branch, the action builds a **generic, configuration-free** Docker image and pushes it to the GitHub Container Registry (`ghcr.io`).
+- **No Secrets Needed**: The workflow **does not** require any secrets like `GEMINI_API_KEYS` or `AUTH_TOKEN`. The image it builds is universal.
+- **How to Use**:
+  1.  Fork the repository.
+  2.  The GitHub Action will run automatically, pushing the image to `ghcr.io/YOUR_USERNAME/gemini-balance-nextjs`.
+  3.  On your server, you can simply pull the latest image (`docker pull ghcr.io/YOUR_USERNAME/gemini-balance-nextjs:latest`) and restart your Docker Compose setup to update.
+  4.  For fully automated deployments, you can use a service like [Watchtower](https://containrrr.dev/watchtower/) or a webhook from your hosting provider (like Coolify) to automatically pull the new image and redeploy.
 
-First, fork this repository to your own GitHub account.
+### 6. Explore the Application
 
-### 2. Configure GitHub Secrets
-
-The workflow requires several secrets to be configured in your GitHub repository's settings (`Settings` > `Secrets and variables` > `Actions`) to build the image and trigger deployments.
-
-**Required for Docker Build:**
-These secrets are passed as build arguments to Docker, embedding them into your image.
-
-- `GEMINI_API_KEYS`: Comma-separated list of your Gemini API keys.
-- `AUTH_TOKEN`: A secret token for the admin dashboard.
-- `DATABASE_URL`: The connection string for your database. For production, this should point to a file in a persistent volume, e.g., `file:/app/data/prod.db`.
-- `ALLOWED_TOKENS` (Optional): Comma-separated list of API access tokens.
-- `MAX_FAILURES` (Optional): Key failure threshold.
-- `GOOGLE_API_HOST` (Optional): Custom Google API host.
-
-**For Auto-Redeployment (Optional):**
-If you use a hosting service like Coolify, you can configure webhooks to automatically redeploy your application when a new image is pushed.
-
-- `COOLIFY_WEBHOOK`: The webhook URL provided by Coolify.
-- `COOLIFY_TOKEN`: The authentication token for the Coolify webhook.
-
-### 3. How It Works
-
-- The workflow is defined in `.github/workflows/deploy.yml`.
-- On every push to the `master` branch, the action will:
-  1. Check out the code.
-  2. Log in to the GitHub Container Registry (`ghcr.io`).
-  3. Build the Docker image, injecting the secrets you configured.
-  4. Push the image to `ghcr.io`, tagging it as `ghcr.io/YOUR_USERNAME/gemini-balance-nextjs:latest` and other git-based tags.
-  5. (Optional) Trigger a redeployment on your hosting service via the configured webhook.
-
-You can then pull this image on your server or configure your hosting service to automatically pull from `ghcr.io` to deploy the latest version.
-
-### 5. Explore the Application
-
-- **Admin Dashboard**: Open [http://localhost:3000/admin](http://localhost:3000/admin) and log in with your `AUTH_TOKEN`. Here you can see the status of your `GEMINI_API_KEYS`.
-- **API Endpoints**: Use a tool like `curl` or Postman to interact with the API endpoints, providing a token from `ALLOWED_TOKENS` or your `AUTH_TOKEN`.
+- **Admin Dashboard**: Open [http://localhost:3000/admin](http://localhost:3000/admin) and log in with the `AUTH_TOKEN` you configured in the UI.
+- **API Endpoints**: Use a tool like `curl` or Postman to interact with the API endpoints, providing a token you configured under "Allowed API Tokens".
 
 **Example `curl` for Gemini/v1beta:**
 

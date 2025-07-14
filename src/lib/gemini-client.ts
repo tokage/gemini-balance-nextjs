@@ -1,13 +1,12 @@
 import { prisma } from "@/lib/db";
 import { getKeyManager } from "@/lib/key-manager";
+import { getSettings } from "@/lib/settings";
 import {
   EnhancedGenerateContentResponse,
   GenerateContentRequest,
   GoogleGenerativeAI,
 } from "@google/generative-ai";
 import { NextResponse } from "next/server";
-
-const MAX_RETRIES = 3;
 
 export interface GeminiClientRequest {
   model: string;
@@ -51,9 +50,10 @@ export async function callGeminiApi({
   request,
 }: GeminiClientRequest): Promise<Response> {
   const keyManager = await getKeyManager();
+  const { MAX_FAILURES } = await getSettings();
   let lastError: unknown = null;
 
-  for (let i = 0; i < MAX_RETRIES; i++) {
+  for (let i = 0; i < MAX_FAILURES; i++) {
     const apiKey = keyManager.getNextWorkingKey();
     const startTime = Date.now();
 

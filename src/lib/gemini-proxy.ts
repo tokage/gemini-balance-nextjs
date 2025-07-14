@@ -18,6 +18,50 @@ interface FetchOptions extends RequestInit {
   duplex?: "half";
 }
 
+/**
+ * Extracts and prepares headers for forwarding, removing host-specific headers.
+ */
+export function getRequestHeaders(request: NextRequest): Headers {
+  const headers = new Headers(request.headers);
+  headers.delete("host");
+  headers.delete("connection");
+  return headers;
+}
+
+/**
+ * Safely gets the request body as a ReadableStream or null.
+ */
+export async function getRequestBody(
+  request: NextRequest
+): Promise<ReadableStream<Uint8Array> | null> {
+  if (request.body) {
+    return request.body;
+  }
+  return null;
+}
+
+/**
+ * Creates a new ReadableStream from an existing one to ensure it can be read.
+ */
+export function createReadableStream(
+  body: ReadableStream<Uint8Array>
+): ReadableStream<Uint8Array> {
+  const reader = body.getReader();
+  return new ReadableStream({
+    async pull(controller) {
+      const { done, value } = await reader.read();
+      if (done) {
+        controller.close();
+        return;
+      }
+      controller.enqueue(value);
+    },
+    cancel() {
+      reader.cancel();
+    },
+  });
+}
+
 export async function proxyRequest(request: NextRequest, pathPrefix: string) {
   const startTime = Date.now();
   let apiKey = "unknown";

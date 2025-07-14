@@ -14,12 +14,13 @@ export class KeyManager {
   private readonly maxFailures: number;
 
   constructor(keys: string[], maxFailures: number = 3) {
-    if (!keys || keys.length === 0) {
-      throw new Error(
-        "KeyManager must be initialized with at least one API key from the database."
+    const initialKeys = keys || [];
+    if (initialKeys.length === 0) {
+      logger.warn(
+        "KeyManager initialized with zero keys. Waiting for user to add keys via UI."
       );
     }
-    this.keys = Object.freeze([...keys]);
+    this.keys = Object.freeze([...initialKeys]);
     this.keyCycle = cycle(this.keys);
     this.failureCounts = new Map(this.keys.map((key) => [key, 0]));
     this.maxFailures = maxFailures;
@@ -83,6 +84,40 @@ export class KeyManager {
       };
     });
   }
+
+  public async checkAndReactivateKeys(): Promise<void> {
+    logger.info("Starting hourly check for inactive API keys...");
+    const inactiveKeys = this.keys.filter((key) => !this.isKeyValid(key));
+
+    if (inactiveKeys.length === 0) {
+      logger.info("No inactive keys to check.");
+      return;
+    }
+
+    logger.info(`Found ${inactiveKeys.length} inactive keys to check.`);
+
+    // Dynamically import to avoid circular dependency issues
+    const { GoogleGenerativeAI } = await import("@google/generative-ai");
+
+    for (const key of inactiveKeys) {
+      try {
+        const genAI = new GoogleGenerativeAI(key);
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        await model.generateContent("hi");
+
+        this.resetKeyFailureCount(key);
+        logger.info(
+          { key: `...${key.slice(-4)}` },
+          "Key is now active after successful health check."
+        );
+      } catch {
+        logger.warn(
+          { key: `...${key.slice(-4)}` },
+          "Key remains inactive after failed health check."
+        );
+      }
+    }
+  }
 }
 
 // --- Singleton Instance ---
@@ -99,48 +134,16 @@ export function resetKeyManager() {
   }
 }
 
-const getKeysFromEnv = (): string[] => {
-  const keysEnv = process.env.GEMINI_API_KEYS;
-  if (!keysEnv) {
-    return [];
-  }
-  return keysEnv
-    .split(",")
-    .map((k) => k.trim())
-    .filter(Boolean);
-};
-
 async function createKeyManager(): Promise<KeyManager> {
-  // 1. Load keys from environment as the primary source
-  const keysFromEnv = getKeysFromEnv();
-
-  // 2. Load keys from the database as a secondary source
+  // 1. Load keys exclusively from the database
   const keysFromDb = (await prisma.apiKey.findMany()).map((k) => k.key);
 
-  // 3. Combine and deduplicate keys, giving priority to environment keys
-  const combinedKeys = [...new Set([...keysFromEnv, ...keysFromDb])];
-
-  // 4. Sync combined keys back to the database for persistence
-  if (combinedKeys.length > 0) {
-    const keysInDb = await prisma.apiKey.findMany();
-    const keysToCreate = combinedKeys.filter(
-      (envKey) => !keysInDb.some((dbKey) => dbKey.key === envKey)
-    );
-
-    if (keysToCreate.length > 0) {
-      await prisma.apiKey.createMany({
-        data: keysToCreate.map((key) => ({ key })),
-      });
-      logger.info(`Synced ${keysToCreate.length} new keys to the database.`);
-    }
-  }
-
-  // 5. Load settings using the settings service
+  // 2. Load settings using the settings service
   const settings = await getSettings();
   const maxFailures = settings.MAX_FAILURES;
 
-  // 6. Initialize KeyManager with the combined list of keys
-  return new KeyManager(combinedKeys, maxFailures);
+  // 3. Initialize KeyManager with the keys from the database
+  return new KeyManager(keysFromDb, maxFailures);
 }
 
 /**

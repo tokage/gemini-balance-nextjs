@@ -2,9 +2,11 @@
 
 "use server";
 
+"use server";
+
 import { prisma } from "@/lib/db";
 import { getKeyManager, resetKeyManager } from "@/lib/key-manager";
-import { resetSettings } from "@/lib/settings";
+import { ParsedSettings, resetSettings } from "@/lib/settings";
 import { revalidatePath } from "next/cache";
 
 export async function addApiKeys(keysString: string) {
@@ -12,42 +14,55 @@ export async function addApiKeys(keysString: string) {
     return { error: "No API keys provided." };
   }
 
-  const keys = keysString
+  // 1. Process the input string into a clean list of potential keys
+  const allSubmittedKeys = keysString
     .split(/[\n,]+/) // Split by newlines or commas
     .map((key) => key.trim())
-    .filter((key) => key && key.startsWith("AIza"));
+    .filter(Boolean); // Filter out any empty strings
 
-  if (keys.length === 0) {
-    return { error: "No valid API keys found in the input." };
+  if (allSubmittedKeys.length === 0) {
+    return { error: "No keys found in the input." };
   }
 
-  const uniqueKeys = [...new Set(keys)];
+  // 2. Remove duplicates from the user's input
+  const uniqueSubmittedKeys = [...new Set(allSubmittedKeys)];
 
   try {
+    // 3. Find which of the submitted keys already exist in the database
     const existingKeys = await prisma.apiKey.findMany({
       where: {
-        key: { in: uniqueKeys },
+        key: { in: uniqueSubmittedKeys },
       },
+      select: { key: true }, // Only select the key field
     });
     const existingKeySet = new Set(existingKeys.map((k) => k.key));
 
-    const newKeys = uniqueKeys.filter((key) => !existingKeySet.has(key));
+    // 4. Determine which keys are genuinely new
+    const newKeysToAdd = uniqueSubmittedKeys.filter(
+      (key) => !existingKeySet.has(key)
+    );
 
-    if (newKeys.length === 0) {
-      return {
-        error: "All provided keys already exist or were duplicates.",
-      };
+    let message = "";
+
+    // 5. Add the new keys if there are any
+    if (newKeysToAdd.length > 0) {
+      await prisma.apiKey.createMany({
+        data: newKeysToAdd.map((key) => ({ key })),
+      });
+      message += `${newKeysToAdd.length} new key(s) added. `;
+      resetKeyManager(); // Invalidate the key manager cache
+      revalidatePath("/admin"); // Revalidate the page to show new keys
+    } else {
+      message += "No new keys were added. ";
     }
 
-    await prisma.apiKey.createMany({
-      data: newKeys.map((key) => ({ key })),
-    });
+    // 6. Report back on duplicates
+    const duplicateCount = uniqueSubmittedKeys.length - newKeysToAdd.length;
+    if (duplicateCount > 0) {
+      message += `${duplicateCount} key(s) were duplicates or already existed.`;
+    }
 
-    resetKeyManager(); // Reset the singleton instance
-    revalidatePath("/admin");
-    return {
-      success: `${newKeys.length} new API key(s) added successfully.`,
-    };
+    return { success: message.trim() };
   } catch (_error) {
     console.error("Failed to add API keys:", _error);
     return { error: "Failed to add API keys to the database." };
@@ -126,6 +141,40 @@ export async function updateSetting(key: string, value: string) {
   }
 }
 
+export async function updateSettings(settings: ParsedSettings) {
+  try {
+    const updates = Object.entries(settings).map(([key, value]) => {
+      let dbValue: string;
+      if (typeof value === "boolean") {
+        dbValue = value.toString();
+      } else if (typeof value === "number") {
+        dbValue = value.toString();
+      } else if (typeof value === "object") {
+        dbValue = JSON.stringify(value);
+      } else {
+        dbValue = value;
+      }
+      return prisma.setting.upsert({
+        where: { key },
+        update: { value: dbValue },
+        create: { key, value: dbValue },
+      });
+    });
+
+    await prisma.$transaction(updates);
+
+    resetSettings();
+    resetKeyManager(); // Also reset key manager in case MAX_FAILURES changed
+    revalidatePath("/admin/config");
+    revalidatePath("/admin");
+
+    return { success: "Configuration updated successfully!" };
+  } catch (error) {
+    console.error("Failed to update settings:", error);
+    return { error: "Failed to update settings." };
+  }
+}
+
 // Log Management Actions
 
 type LogType = "request" | "error";
@@ -156,7 +205,7 @@ export async function getLogs(filters: LogFilters) {
         skip: (page - 1) * limit,
         take: limit,
       });
-      return { logs, total };
+      return { logs, total, error: null };
     } else {
       const where: ErrorLogWhere = {};
       if (search) {
@@ -173,11 +222,12 @@ export async function getLogs(filters: LogFilters) {
         skip: (page - 1) * limit,
         take: limit,
       });
-      return { logs, total };
+      return { logs, total, error: null };
     }
   } catch (_error) {
-    console.error(`Failed to fetch ${logType} logs:`, _error);
-    return { error: `Failed to fetch ${logType} logs.` };
+    const errorMessage = `Failed to fetch ${logType} logs.`;
+    console.error(errorMessage, _error);
+    return { logs: [], total: 0, error: errorMessage };
   }
 }
 
