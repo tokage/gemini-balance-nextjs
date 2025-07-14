@@ -1,27 +1,76 @@
 import { callGeminiApi } from "@/lib/gemini-client";
 import {
-  geminiToOpenAiStreamChunk,
+  OpenAIChatMessage,
   OpenAIChatRequest,
-  openAiToGeminiRequest,
+  geminiToOpenAiStreamChunk,
 } from "@/lib/google-adapter";
 import logger from "@/lib/logger";
-import { EnhancedGenerateContentResponse } from "@google/generative-ai";
+import {
+  Content,
+  EnhancedGenerateContentResponse,
+  GenerateContentRequest,
+} from "@google/generative-ai";
 import { NextRequest, NextResponse } from "next/server";
 
-/**
- * Transforms a stream of Gemini SDK chunks into an OpenAI-compatible SSE stream.
- */
+function adaptOpenAIRequestToGemini(
+  body: OpenAIChatRequest
+): GenerateContentRequest {
+  const contents: Content[] = body.messages.map((msg: OpenAIChatMessage) => ({
+    role: msg.role === "assistant" ? "model" : "user",
+    parts: [{ text: msg.content }],
+  }));
+
+  const generationConfig: Record<string, unknown> = {};
+  if (body.temperature !== undefined)
+    generationConfig.temperature = body.temperature;
+  if (body.top_p !== undefined) generationConfig.topP = body.top_p;
+  if (body.max_tokens !== undefined)
+    generationConfig.maxOutputTokens = body.max_tokens;
+  if (body.stop) {
+    generationConfig.stopSequences =
+      typeof body.stop === "string" ? [body.stop] : body.stop;
+  }
+
+  return {
+    contents,
+    generationConfig,
+  };
+}
+
+function createUsageChunk(usage: {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+}) {
+  return {
+    id: `chatcmpl-${Date.now()}`,
+    object: "chat.completion.chunk",
+    created: Math.floor(Date.now() / 1000),
+    model: "gemini-pro", // This could be dynamic
+    choices: [
+      {
+        index: 0,
+        delta: {},
+        finish_reason: "stop",
+      },
+    ],
+    usage,
+  };
+}
+
 function transformGeminiStreamToOpenAIStream(
   geminiStream: ReadableStream,
   model: string
 ): ReadableStream {
   const textDecoder = new TextDecoder();
+  let promptTokens = 0;
+  let completionTokens = 0;
+
   const transformStream = new TransformStream({
     transform(chunk, controller) {
       const decodedChunk = textDecoder.decode(chunk, { stream: true });
-
-      // Process each line in the chunk, as one chunk can have multiple SSE messages
       const lines = decodedChunk.split("\n\n");
+
       for (const line of lines) {
         if (line.startsWith("data: ")) {
           try {
@@ -29,17 +78,34 @@ function transformGeminiStreamToOpenAIStream(
             if (jsonString.trim()) {
               const geminiChunk: EnhancedGenerateContentResponse =
                 JSON.parse(jsonString);
+
+              if (geminiChunk.usageMetadata) {
+                promptTokens += geminiChunk.usageMetadata.promptTokenCount || 0;
+                completionTokens +=
+                  geminiChunk.usageMetadata.candidatesTokenCount || 0;
+              }
+
               const openAIChunk = geminiToOpenAiStreamChunk(geminiChunk, model);
-              controller.enqueue(openAIChunk);
+              controller.enqueue(`data: ${JSON.stringify(openAIChunk)}\n\n`);
             }
           } catch (error) {
             logger.error({ error }, "Error parsing stream chunk");
-            // Decide if we should bubble up the error or just skip the chunk
+            const errorChunk = {
+              error: "Error processing stream from upstream API.",
+            };
+            controller.enqueue(`data: ${JSON.stringify(errorChunk)}\n\n`);
           }
         }
       }
     },
     flush(controller) {
+      const usage = {
+        prompt_tokens: promptTokens,
+        completion_tokens: completionTokens,
+        total_tokens: promptTokens + completionTokens,
+      };
+      const usageChunk = createUsageChunk(usage);
+      controller.enqueue(`data: ${JSON.stringify(usageChunk)}\n\n`);
       controller.enqueue("data: [DONE]\n\n");
     },
   });
@@ -48,36 +114,40 @@ function transformGeminiStreamToOpenAIStream(
 }
 
 export async function POST(request: NextRequest) {
-  const requestBody: OpenAIChatRequest = await request.json();
-  const model = requestBody.model || "gemini-pro";
+  try {
+    const requestBody: OpenAIChatRequest = await request.json();
+    const model = requestBody.model || "gemini-pro";
 
-  // 1. Adapt the OpenAI request to the Gemini format
-  const geminiRequest = {
-    contents: openAiToGeminiRequest(requestBody.messages),
-    // TODO: Add other parameters like temperature, topP etc. from requestBody
-  };
+    const geminiRequest = adaptOpenAIRequestToGemini(requestBody);
 
-  // 2. Call the Gemini API using our robust client
-  const geminiResponse = await callGeminiApi({
-    model,
-    request: geminiRequest,
-  });
-
-  // 3. If the response is a successful stream, adapt it to the OpenAI format
-  if (geminiResponse.ok && geminiResponse.body) {
-    const openAIStream = transformGeminiStreamToOpenAIStream(
-      geminiResponse.body,
-      model
-    );
-    return new NextResponse(openAIStream, {
-      headers: {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
-      },
+    // The gemini-client handles key management, retries, and logging
+    const geminiResponse = await callGeminiApi({
+      model,
+      request: geminiRequest,
     });
-  }
 
-  // 4. If it's an error response, return it directly
-  return geminiResponse;
+    if (geminiResponse.ok && requestBody.stream && geminiResponse.body) {
+      const openAIStream = transformGeminiStreamToOpenAIStream(
+        geminiResponse.body,
+        model
+      );
+      return new NextResponse(openAIStream, {
+        status: 200,
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          Connection: "keep-alive",
+        },
+      });
+    }
+
+    // For non-streamed or error responses, return them as is.
+    return geminiResponse;
+  } catch (error) {
+    logger.error({ error }, "Critical error in OpenAI compatibility layer.");
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 }
+    );
+  }
 }
