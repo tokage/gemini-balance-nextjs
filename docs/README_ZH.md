@@ -1,8 +1,17 @@
 # Gemini Balance - Next.js 版本
 
+You can read this document in [English](README.md).
+
 本项目是 `gemini-balance` Python 项目的高性能、功能丰富的 Next.js 实现。它作为一个智能 AI 网关，通过多种 API 格式（包括 OpenAI 兼容格式）接收请求，并将其路由到 Google 的 Gemini 模型。
 
 该版本超越了简单的代理，提供了一套强大的功能集，包括管理仪表盘、持久化配置和高级身份验证，使其成为一个功能强大且灵活的开发解决方案。
+
+## 重要说明
+
+- **项目来源与致谢**: 本项目是原始 Python 项目 [gemini-balance](https://github.com/snailyp/gemini-balance) 的 Next.js 实现。特别感谢原作者的灵感。目前，项目仅实现了核心的 API 转发和管理能力，其他功能正在陆续开发中。
+- **AI 生成**: 除了本段声明外，本项目中的所有代码和文档均由 Google 的 Gemini 模型编写。
+- **贡献**: 欢迎提交 Pull Request！请注意，PR 也将由 AI 模型进行审查和处理。
+- **维护**: 作者本人并非 Python 开发者，不熟悉原项目的具体细节。未来的更新和维护将交由 AI 模型处理。
 
 ## 核心功能
 

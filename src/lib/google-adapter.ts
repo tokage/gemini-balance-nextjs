@@ -215,7 +215,11 @@ export interface OpenAIChatMessage {
 export interface OpenAIChatRequest {
   messages: OpenAIChatMessage[];
   model?: string;
-  // Add other potential OpenAI request fields if needed
+  temperature?: number;
+  top_p?: number;
+  max_tokens?: number;
+  stop?: string | string[];
+  stream?: boolean;
 }
 
 /**

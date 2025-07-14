@@ -1,8 +1,17 @@
 # Gemini Balance - Next.js Edition
 
+You can read this document in [Chinese](README_ZH.md).
+
 This project is a high-performance, feature-rich Next.js implementation inspired by the `gemini-balance` Python project. It functions as an intelligent AI gateway, receiving requests through multiple API formats (including OpenAI-compatible) and routing them to Google's Gemini models.
 
 This version goes beyond a simple proxy, offering a robust feature set including a management dashboard, persistent configuration, and advanced authentication, making it a powerful and flexible solution for developers.
+
+## Important Notes
+
+- **Origin & Acknowledgment**: This project is a Next.js implementation of the original Python project [gemini-balance](https://github.com/snailyp/gemini-balance). Special thanks to the original author for the inspiration. It currently implements the core API forwarding and management capabilities, with other features under active development.
+- **AI-Generated**: With the exception of this notice, all code and documentation in this project were written by Google's Gemini model.
+- **Contributions**: Pull requests are welcome! Please note that PRs will also be reviewed and managed by an AI.
+- **Maintenance**: The author is not a Python developer and is unfamiliar with the intricacies of the original project. Future updates and maintenance will be handled by the AI model.
 
 ## Core Features
 
