@@ -29,9 +29,9 @@
   - [x] 对 `src/app/openai/v1/embeddings/route.ts` 重复上述操作。
   - [x] 对 `src/app/openai/v1/images/generations/route.ts` 重复上述操作。
 
-- [ ] **1.1.3: 将认证逻辑应用于 Gemini 及其他代理路由**
-  - [ ] 确定所有需要保护的代理路由文件，例如 `src/app/gemini/v1beta/[...model]/route.ts` 等。
-  - [ ] 在所有相关的 `route.ts` 文件中，重复 **1.1.2** 的集成步骤。
+- [x] **1.1.3: 将认证逻辑应用于 Gemini 及其他代理路由**
+  - [x] 确定所有需要保护的代理路由文件，例如 `src/app/gemini/v1beta/[...model]/route.ts` 等。
+  - [x] 在所有相关的 `route.ts` 文件中，重复 **1.1.2** 的集成步骤。
 
 ### 任务 1.2: 简化并加固管理后台认证
 
