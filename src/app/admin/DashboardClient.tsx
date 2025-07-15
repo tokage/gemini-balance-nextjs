@@ -24,6 +24,7 @@ interface KeyInfo {
   key: string;
   failCount: number;
   isWorking: boolean;
+  lastFailedAt: Date | null;
   usage?: {
     total: number;
     success: number;

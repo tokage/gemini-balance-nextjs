@@ -106,61 +106,61 @@
 
 ### 任务 3.1: 完善密钥管理器与健康检查
 
-- [ ] **3.1.1: 审查并加固 KeyManager 逻辑**
+- [x] **3.1.1: 审查并加固 KeyManager 逻辑**
 
-  - [ ] 打开 `src/lib/key-manager.ts`。
-  - [ ] 仔细审查 `getAvailableKey`、`markAsFailed` 等核心方法，确保负载均衡和失败计数的逻辑正确无误。
-  - [ ] 确认 `KeyManager` 的单例模式在 Next.js 的热重载环境下是安全的。
+  - [x] 打开 `src/lib/key-manager.ts`。
+  - [x] 仔细审查 `getAvailableKey`、`markAsFailed` 等核心方法，确保负载均衡和失败计数的逻辑正确无误。
+  - [x] 确认 `KeyManager` 的单例模式在 Next.js 的热重载环境下是安全的。
 
-- [ ] **3.1.2: 实现并验证定时健康检查**
+- [x] **3.1.2: 实现并验证定时健康检查**
 
-  - [ ] 打开 `src/app/api/cron/health-check/route.ts`。
-  - [ ] 实现该路由的 `GET` 方法。
-  - [ ] 从 `KeyManager` 获取所有被禁用的密钥列表。
-  - [ ] 遍历列表，为每个密钥发送一个轻量级的测试 API 请求（例如向 `gemini-1.5-flash` 问好）。
-  - [ ] 如果测试请求成功，调用 `KeyManager` 的方法（例如 `reactivateKey`）将其从禁用池移回活动池并重置失败计数。
-  - [ ] 部署或配置一个 Cron Job 服务（如 Vercel Cron）来定期调用此路由。
+  - [x] 打开 `src/app/api/cron/health-check/route.ts`。
+  - [x] 实现该路由的 `GET` 方法。
+  - [x] 从 `KeyManager` 获取所有被禁用的密钥列表。
+  - [x] 遍历列表，为每个密钥发送一个轻量级的测试 API 请求（例如向 `gemini-1.5-flash` 问好）。
+  - [x] 如果测试请求成功，调用 `KeyManager` 的方法（例如 `reactivateKey`）将其从禁用池移回活动池并重置失败计数。
+  - [x] 部署或配置一个 Cron Job 服务（如 Vercel Cron）来定期调用此路由。
 
-- [ ] **3.1.3: 使健康检查可配置**
-  - [ ] 在 `src/lib/settings.ts` 中，添加一个新的环境变量 `HEALTH_CHECK_MODEL`，默认值为 `gemini-1.5-flash`。
-  - [ ] 修改健康检查路由，使用此配置的`HEALTH_CHECK_MODEL`进行测试，而不是硬编码的值。
+- [x] **3.1.3: 使健康检查可配置**
+  - [x] 在 `src/lib/settings.ts` 中，添加一个新的环境变量 `HEALTH_CHECK_MODEL`，默认值为 `gemini-1.5-flash`。
+  - [x] 修改健康检查路由，使用此配置的`HEALTH_CHECK_MODEL`进行测试，而不是硬编码的值。
 
 ### 任务 3.2: 实现高级模型功能
 
-- [ ] **3.2.1: 实现联网搜索功能**
+- [x] **3.2.1: 实现联网搜索功能**
 
-  - [ ] 打开 `src/lib/google-adapter.ts` 或处理请求转换的核心模块。
-  - [ ] 在转换 OpenAI 请求到 Gemini 请求的逻辑中，增加一个判断：如果模型名称以 `-search` 结尾。
-  - [ ] 如果条件为真，则在构造 Gemini 请求体时，自动向 `tools` 数组中添加 `{"googleSearch": {}}`。
+  - [x] 打开 `src/lib/google-adapter.ts` 或处理请求转换的核心模块。
+  - [x] 在转换 OpenAI 请求到 Gemini 请求的逻辑中，增加一个判断：如果模型名称以 `-search` 结尾。
+  - [x] 如果条件为真，则在构造 Gemini 请求体时，自动向 `tools` 数组中添加 `{"googleSearch": {}}`。
 
-- [ ] **3.2.2: 实现对话式图像生成**
+- [x] **3.2.2: 实现对话式图像生成**
 
-  - [ ] 在 `src/app/openai/v1/chat/completions/route.ts` 或相应的代理逻辑中，增加一个判断：如果请求的模型是已知的图像生成模型（例如，名称以 `imagen` 开头）。
-  - [ ] 如果是，则将请求转发给 `src/lib/imagen-client.ts` 中的特定逻辑处理，而不是标准的 `gemini-proxy`。
+  - [x] 在 `src/app/openai/v1/chat/completions/route.ts` 或相应的代理逻辑中，增加一个判断：如果请求的模型是已知的图像生成模型（例如，名称以 `imagen` 开头）。
+  - [x] 如果是，则将请求转发给 `src/lib/imagen-client.ts` 中的特定逻辑处理，而不是标准的 `gemini-proxy`。
   - [ ] （可选）如果需要返回公网 URL，需实现将生成的图片上传到图床的逻辑。
 
-- [ ] **3.2.3: 验证 Function Calling 适配**
-  - [ ] 编写或执行一个测试用例，该用例包含 OpenAI 格式的 `tools` 参数。
-  - [ ] 调试并确保 `src/lib/google-adapter.ts` 能将其正确转换为 Gemini 支持的 `functionDeclarations` 格式。
+- [x] **3.2.3: 验证 Function Calling 适配**
+  - [x] 编写或执行一个测试用例，该用例包含 OpenAI 格式的 `tools` 参数。
+  - [x] 调试并确保 `src/lib/google-adapter.ts` 能将其正确转换为 Gemini 支持的 `functionDeclarations` 格式。
 
 ### 任务 3.3: 完善管理后台功能
 
-- [ ] **3.3.1: 增强密钥状态监控**
+- [x] **3.3.1: 增强密钥状态监控**
 
-  - [ ] 打开 `src/app/admin/KeyTable.tsx` 和相关的 `actions.ts`。
-  - [ ] 确保表格能从后端正确获取并展示所有密钥的状态（有效/无效）、失败次数、上次失败时间等。
-  - [ ] 为每一行添加 "手动验证" 和 "重置失败计数" 的按钮。
-  - [ ] 实现这两个按钮对应的服务器操作，分别调用 `KeyManager` 的 `verifyKey` 和 `resetFailureCount` 方法。
+  - [x] 打开 `src/app/admin/KeyTable.tsx` 和相关的 `actions.ts`。
+  - [x] 确保表格能从后端正确获取并展示所有密钥的状态（有效/无效）、失败次数、上次失败时间等。
+  - [x] 为每一行添加 "手动验证" 和 "重置失败计数" 的按钮。
+  - [x] 实现这两个按钮对应的服务器操作，分别调用 `KeyManager` 的 `verifyKey` 和 `resetFailureCount` 方法。
 
-- [ ] **3.3.2: 实现配置热重载**
+- [x] **3.3.2: 实现配置热重载**
 
-  - [ ] 打开 `src/app/admin/config/page.tsx` 和 `ConfigForm.tsx`。
-  - [ ] 确保表单能读取并展示 `Settings` 表中的所有可配置项。
-  - [ ] 实现表单的保存操作，将修改后的值更新到数据库。
-  - [ ] **关键**: 实现一个机制来通知 `KeyManager` 和 `settings.ts` 等单例服务重新从数据库加载配置，而无需重启应用。这可能需要一个全局的事件发射器或一个特定的重载函数。
+  - [x] 打开 `src/app/admin/config/page.tsx` 和 `ConfigForm.tsx`。
+  - [x] 确保表单能读取并展示 `Settings` 表中的所有可配置项。
+  - [x] 实现表单的保存操作，将修改后的值更新到数据库。
+  - [x] **关键**: 实现一个机制来通知 `KeyManager` 和 `settings.ts` 等单例服务重新从数据库加载配置，而无需重启应用。这可能需要一个全局的事件发射器或一个特定的重载函数。
 
-- [ ] **3.3.3: 实现日志查询功能**
-  - [ ] 打开 `src/app/admin/logs/page.tsx` 和 `LogViewer.tsx`。
-  - [ ] 实现后端逻辑（可能在 `actions.ts` 中），用于从 `RequestLog` 和 `ErrorLog` 表中分页查询数据。
-  - [ ] 在前端实现分页控件和 UI，以展示查询到的日志数据。
-  - [ ] （可选）添加搜索和过滤功能。
+- [x] **3.3.3: 实现日志查询功能**
+  - [x] 打开 `src/app/admin/logs/page.tsx` 和 `LogViewer.tsx`。
+  - [x] 实现后端逻辑（可能在 `actions.ts` 中），用于从 `RequestLog` 和 `ErrorLog` 表中分页查询数据。
+  - [x] 在前端实现分页控件和 UI，以展示查询到的日志数据。
+  - [x] （可选）添加搜索和过滤功能。

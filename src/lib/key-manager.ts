@@ -11,6 +11,7 @@ export class KeyManager {
   private keys: readonly string[];
   private keyCycle: IterableIterator<string>;
   private failureCounts: Map<string, number>;
+  private lastFailureTimes: Map<string, Date>;
   private readonly maxFailures: number;
 
   constructor(keys: string[], maxFailures: number = 3) {
@@ -23,6 +24,7 @@ export class KeyManager {
     this.keys = Object.freeze([...initialKeys]);
     this.keyCycle = cycle(this.keys);
     this.failureCounts = new Map(this.keys.map((key) => [key, 0]));
+    this.lastFailureTimes = new Map();
     this.maxFailures = maxFailures;
     logger.info(
       `KeyManager initialized with ${this.keys.length} keys from database.`
@@ -53,6 +55,7 @@ export class KeyManager {
     if (this.failureCounts.has(key)) {
       const currentFailures = this.failureCounts.get(key)!;
       this.failureCounts.set(key, currentFailures + 1);
+      this.lastFailureTimes.set(key, new Date());
       logger.warn(
         { key: `...${key.slice(-4)}`, failures: currentFailures + 1 },
         `Failure recorded for key.`
@@ -63,6 +66,7 @@ export class KeyManager {
   public resetKeyFailureCount(key: string): void {
     if (this.failureCounts.has(key)) {
       this.failureCounts.set(key, 0);
+      this.lastFailureTimes.delete(key);
       logger.info(
         { key: `...${key.slice(-4)}` },
         `Failure count reset for key.`
@@ -74,6 +78,7 @@ export class KeyManager {
     key: string;
     failCount: number;
     isWorking: boolean;
+    lastFailedAt: Date | null;
   }[] {
     return this.keys.map((key) => {
       const failCount = this.failureCounts.get(key)!;
@@ -81,8 +86,32 @@ export class KeyManager {
         key,
         failCount,
         isWorking: this.isKeyValid(key),
+        lastFailedAt: this.lastFailureTimes.get(key) || null,
       };
     });
+  }
+
+  public async verifyKey(key: string): Promise<boolean> {
+    try {
+      const { GoogleGenerativeAI } = await import("@google/generative-ai");
+      const settings = await getSettings();
+      const healthCheckModel = settings.HEALTH_CHECK_MODEL;
+      const genAI = new GoogleGenerativeAI(key);
+      const model = genAI.getGenerativeModel({ model: healthCheckModel });
+      await model.generateContent("hi");
+      this.resetKeyFailureCount(key);
+      logger.info(
+        { key: `...${key.slice(-4)}` },
+        "Key is now active after successful health check."
+      );
+      return true;
+    } catch {
+      logger.warn(
+        { key: `...${key.slice(-4)}` },
+        "Key remains inactive after failed health check."
+      );
+      return false;
+    }
   }
 
   public async checkAndReactivateKeys(): Promise<void> {
@@ -96,26 +125,8 @@ export class KeyManager {
 
     logger.info(`Found ${inactiveKeys.length} inactive keys to check.`);
 
-    // Dynamically import to avoid circular dependency issues
-    const { GoogleGenerativeAI } = await import("@google/generative-ai");
-
     for (const key of inactiveKeys) {
-      try {
-        const genAI = new GoogleGenerativeAI(key);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-        await model.generateContent("hi");
-
-        this.resetKeyFailureCount(key);
-        logger.info(
-          { key: `...${key.slice(-4)}` },
-          "Key is now active after successful health check."
-        );
-      } catch {
-        logger.warn(
-          { key: `...${key.slice(-4)}` },
-          "Key remains inactive after failed health check."
-        );
-      }
+      await this.verifyKey(key);
     }
   }
 }

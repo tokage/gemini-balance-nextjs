@@ -103,6 +103,25 @@ export async function resetKeysFailures(keys: string[]) {
   }
 }
 
+export async function verifyApiKeys(keys: string[]) {
+  if (!keys || keys.length === 0) {
+    return { error: "No keys provided for verification." };
+  }
+  try {
+    const keyManager = await getKeyManager();
+    const results = await Promise.all(
+      keys.map(async (key) => {
+        const success = await keyManager.verifyKey(key);
+        return { key, success };
+      })
+    );
+    revalidatePath("/admin");
+    return { success: "Verification process completed.", results };
+  } catch {
+    return { error: "Failed to verify API keys." };
+  }
+}
+
 export async function getKeyUsageDetails(apiKey: string) {
   try {
     const totalCalls = await prisma.requestLog.count({

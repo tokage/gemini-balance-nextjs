@@ -17,12 +17,13 @@ import {
 } from "@/components/ui/table";
 import { MoreHorizontal } from "lucide-react";
 import { useTransition } from "react";
-import { deleteApiKeys, resetKeysFailures } from "./actions";
+import { deleteApiKeys, resetKeysFailures, verifyApiKeys } from "./actions";
 
 type Key = {
   key: string;
   failCount: number;
   isWorking: boolean;
+  lastFailedAt: Date | null;
 };
 
 interface KeyTableProps {
@@ -54,6 +55,26 @@ export function KeyTable({ keys }: KeyTableProps) {
     });
   };
 
+  const handleVerify = (key: string) => {
+    startTransition(async () => {
+      const result = await verifyApiKeys([key]);
+      if (result.error) {
+        alert(`Error: ${result.error}`);
+      } else {
+        const keyResult = result.results?.[0];
+        if (keyResult) {
+          alert(
+            `Verification for key ...${keyResult.key.slice(-4)}: ${
+              keyResult.success ? "Success" : "Failed"
+            }`
+          );
+        } else {
+          alert(result.success);
+        }
+      }
+    });
+  };
+
   return (
     <Table>
       <TableHeader>
@@ -61,6 +82,7 @@ export function KeyTable({ keys }: KeyTableProps) {
           <TableHead>Key (Last 4 Chars)</TableHead>
           <TableHead>Status</TableHead>
           <TableHead>Failure Count</TableHead>
+          <TableHead>Last Failed At</TableHead>
           <TableHead>Actions</TableHead>
         </TableRow>
       </TableHeader>
@@ -81,6 +103,11 @@ export function KeyTable({ keys }: KeyTableProps) {
             </TableCell>
             <TableCell>{key.failCount}</TableCell>
             <TableCell>
+              {key.lastFailedAt
+                ? new Date(key.lastFailedAt).toLocaleString()
+                : "N/A"}
+            </TableCell>
+            <TableCell>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="h-8 w-8 p-0">
@@ -89,6 +116,12 @@ export function KeyTable({ keys }: KeyTableProps) {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={() => handleVerify(key.key)}
+                    disabled={isPending}
+                  >
+                    Verify Key
+                  </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => handleReset(key.key)}
                     disabled={isPending}
