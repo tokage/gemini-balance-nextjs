@@ -81,16 +81,14 @@
 
 ### 任务 2.2: 修复并规范化数据库迁移脚本
 
-- [ ] **2.2.1: 修正 `package.json`**
-
-  - [ ] 打开 `package.json` 文件。
-  - [ ] 找到 `"db:migrate"` 脚本。
-  - [ ] 将其值从 `"tsx scripts/migrate.ts"` 修改为 `"prisma migrate dev"`。
-
-- [ ] **2.2.2: 更新文档**
-  - [ ] 打开 `README.md` 或 `docs/README_ZH.md`。
-  - [ ] 添加一个新的 "数据库迁移" 章节。
-  - [ ] 在该章节中，分别说明开发环境 (`pnpm run db:migrate`) 和生产环境 (`pnpm dlx prisma migrate deploy`) 的命令和用途。
+- [x] **2.2.1: 修正 `package.json`**
+  - [x] 打开 `package.json` 文件。
+  - [x] 找到 `"db:migrate"` 脚本。
+  - [x] 将其值从 `"tsx scripts/migrate.ts"` 修改为 `"prisma migrate dev"`。
+- [x] **2.2.2: 更新文档**
+  - [x] 打开 `README.md` 或 `docs/README_ZH.md`。
+  - [x] 添加一个新的 "数据库迁移" 章节。
+  - [x] 在该章节中，分别说明开发环境 (`pnpm run db:migrate`) 和生产环境 (`pnpm dlx prisma migrate deploy`) 的命令和用途。
 
 ### 任务 2.3: 专业的 UI/UX 基础建设
 

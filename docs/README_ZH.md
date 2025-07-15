@@ -43,7 +43,20 @@ You can read this document in [English](README.md).
 
 请按照以下步骤在本地运行本项目。
 
-### 1. 安装依赖
+### 1. 数据库迁移
+
+在不同的环境中，请使用对应的命令来管理数据库结构：
+
+- **开发环境**: 在修改了 `prisma/schema.prisma` 文件后，运行此命令来创建和应用新的迁移。
+  ```bash
+  pnpm run db:migrate
+  ```
+- **生产环境**: 在部署新版本时，此命令会安全地应用所有待处理的迁移，而不会重置数据。
+  ```bash
+  pnpm prisma migrate deploy
+  ```
+
+### 2. 安装依赖
 
 进入项目目录并安装所需依赖包。
 
@@ -51,17 +64,13 @@ You can read this document in [English](README.md).
 pnpm install
 ```
 
-### 2. 初始化数据库
+### 3. 初始化数据库
 
-本项目使用 Prisma 进行数据库管理。运行以下命令创建 SQLite 数据库并应用 schema。
-
-```bash
-pnpm prisma migrate dev
-```
+本项目使用 Prisma 进行数据库管理。运行 `pnpm run db:migrate` 命令来创建您的第一个迁移并初始化数据库。
 
 这将在 `prisma/` 目录下创建一个 `dev.db` 文件。
 
-### 3. 配置环境变量
+### 4. 配置环境变量
 
 创建一个 `.env.local` 文件。应用需要以下变量来连接数据库。
 
