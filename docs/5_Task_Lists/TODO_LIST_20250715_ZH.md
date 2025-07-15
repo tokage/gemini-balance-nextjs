@@ -20,14 +20,14 @@
     - [x] 如果数据库查询失败，返回 500 错误响应。
     - [x] 如果令牌有效，返回 `null`。
 
-- [ ] **1.1.2: 将认证逻辑应用于 OpenAI 兼容路由**
+- [x] **1.1.2: 将认证逻辑应用于 OpenAI 兼容路由**
 
-  - [ ] 修改 `src/app/openai/v1/chat/completions/route.ts`：
+  - [x] 修改 `src/app/openai/v1/chat/completions/route.ts`：
     - 导入 `isAuthenticated`。
     - 在 `POST` 函数的开头调用 `await isAuthenticated(request)`。
     - 如果返回错误响应，则直接 `return` 该响应。
-  - [ ] 对 `src/app/openai/v1/embeddings/route.ts` 重复上述操作。
-  - [ ] 对 `src/app/openai/v1/images/generations/route.ts` 重复上述操作。
+  - [x] 对 `src/app/openai/v1/embeddings/route.ts` 重复上述操作。
+  - [x] 对 `src/app/openai/v1/images/generations/route.ts` 重复上述操作。
 
 - [ ] **1.1.3: 将认证逻辑应用于 Gemini 及其他代理路由**
   - [ ] 确定所有需要保护的代理路由文件，例如 `src/app/gemini/v1beta/[...model]/route.ts` 等。

@@ -1,3 +1,4 @@
+import { isAuthenticated } from "@/lib/auth";
 import {
   createReadableStream,
   getRequestBody,
@@ -7,6 +8,11 @@ import { getSettings } from "@/lib/settings";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest): Promise<Response> {
+  const authError = await isAuthenticated(request);
+  if (authError) {
+    return authError;
+  }
+
   const { PROXY_URL } = await getSettings();
 
   if (!PROXY_URL) {
