@@ -1,3 +1,4 @@
+import { isAuthenticated } from "@/lib/auth";
 import { callGeminiApi } from "@/lib/gemini-client";
 import {
   OpenAIChatMessage,
@@ -114,6 +115,11 @@ function transformGeminiStreamToOpenAIStream(
 }
 
 export async function POST(request: NextRequest) {
+  const authError = await isAuthenticated(request);
+  if (authError) {
+    return authError;
+  }
+
   try {
     const requestBody: OpenAIChatRequest = await request.json();
     const model = requestBody.model || "gemini-pro";
