@@ -14,5 +14,10 @@ chown -R nextjs:nodejs /app/data
 echo "Running database migrations as nextjs user..."
 su-exec nextjs:nodejs npx prisma migrate deploy
 
+# Ensure the created database file and the directory itself have the correct ownership,
+# which is crucial for SQLite to be able to create journal files for write operations.
+echo "Finalizing ownership of /app/data to prevent locking issues..."
+chown -R nextjs:nodejs /app/data
+
 echo "Starting application as nextjs user..."
 exec su-exec nextjs:nodejs node server.js

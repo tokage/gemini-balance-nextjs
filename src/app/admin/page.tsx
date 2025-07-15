@@ -16,19 +16,22 @@ export default async function AdminPage() {
   const keys = keyManager.getAllKeys();
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div>
-          <CardTitle>API Keys</CardTitle>
-          <CardDescription>
-            Manage and monitor your Gemini API keys.
-          </CardDescription>
-        </div>
-        <AddKeyDialog />
-      </CardHeader>
-      <CardContent>
-        <KeyTable keys={keys} />
-      </CardContent>
-    </Card>
+    <div className="flex flex-col gap-4">
+      <h1 className="text-2xl font-semibold">Dashboard</h1>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>API Keys</CardTitle>
+            <CardDescription>
+              Manage and monitor your Gemini API keys.
+            </CardDescription>
+          </div>
+          <AddKeyDialog />
+        </CardHeader>
+        <CardContent>
+          <KeyTable keys={keys} />
+        </CardContent>
+      </Card>
+    </div>
   );
 }

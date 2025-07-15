@@ -1,49 +1,66 @@
 "use server";
 
+import logger from "@/lib/logger";
 import { getSettings, updateSetting } from "@/lib/settings";
+import bcrypt from "bcrypt";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-export async function login(
-  state: { error?: string; success?: boolean },
-  formData: FormData
-) {
-  const submittedToken = (formData.get("token") as string) || "";
-  const settings = await getSettings();
-  const currentAuthToken = settings.AUTH_TOKEN;
+const SALT_ROUNDS = 10;
 
-  // Rule: The token can never be empty.
+export async function login(
+  state: { error?: string },
+  formData: FormData
+): Promise<{ error?: string }> {
+  const submittedToken = (formData.get("token") as string) || "";
+
   if (submittedToken === "") {
+    logger.warn("Login failed: Token was empty.");
     return { error: "Token cannot be empty." };
   }
 
-  // Case 1: System is already configured.
-  if (currentAuthToken !== "") {
-    if (submittedToken !== currentAuthToken) {
+  const settings = await getSettings();
+  const storedAuthTokenHash = settings.AUTH_TOKEN;
+  logger.info(`Stored auth token hash exists: ${!!storedAuthTokenHash}`);
+
+  // Case 1: System is already configured with a hashed token.
+  if (storedAuthTokenHash) {
+    const isValid = await bcrypt.compare(submittedToken, storedAuthTokenHash);
+    if (!isValid) {
+      logger.warn("Login failed: Invalid token.");
       return { error: "Invalid token." };
     }
   }
-  // Case 2: Initial setup (currentAuthToken is "").
+  // Case 2: Initial setup. The first submitted token sets the new hash.
   else {
-    // The first non-empty token becomes the new auth token.
-    await updateSetting("AUTH_TOKEN", submittedToken);
+    logger.info("Initial setup: Hashing new token...");
+    const newHash = await bcrypt.hash(submittedToken, SALT_ROUNDS);
+    try {
+      await updateSetting("AUTH_TOKEN", newHash);
+      logger.info("AUTH_TOKEN has been set.");
+    } catch (error) {
+      logger.error({ error }, "Error calling updateSetting.");
+      return { error: "Failed to save new token." };
+    }
   }
 
+  logger.info("Login successful. Setting cookie and redirecting.");
   // If we reach here, login is successful.
+  // Store the raw token in the cookie for subsequent requests validation.
   const cookieStore = await cookies();
   cookieStore.set("auth_token", submittedToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: 60 * 60 * 24, // 1 day
+    maxAge: 60 * 60 * 24 * 30, // 30 days
   });
 
-  return { success: true };
+  redirect("/admin");
 }
 
 export async function logout() {
   const cookieStore = await cookies();
   cookieStore.delete("auth_token");
-  redirect("/auth");
+  redirect("/");
 }

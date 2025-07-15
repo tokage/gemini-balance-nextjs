@@ -6,6 +6,7 @@ const defaultSettings = {
   AUTH_TOKEN: "", // Add AUTH_TOKEN to the defaults
   ALLOWED_TOKENS: "",
   MAX_FAILURES: "3",
+  HEALTH_CHECK_MODEL: "gemini-1.5-flash",
   PROXY_URL: "", // Optional proxy URL
   // Booleans are stored as strings "true" or "false"
   TOOLS_CODE_EXECUTION_ENABLED: "false",
@@ -24,6 +25,7 @@ export type ParsedSettings = {
   AUTH_TOKEN: string;
   ALLOWED_TOKENS: string;
   MAX_FAILURES: number;
+  HEALTH_CHECK_MODEL: string;
   PROXY_URL: string;
   TOOLS_CODE_EXECUTION_ENABLED: boolean;
   SAFETY_SETTINGS: { category: string; threshold: string }[];
@@ -74,6 +76,7 @@ function parseSettings(settings: Settings): ParsedSettings {
     AUTH_TOKEN: settings.AUTH_TOKEN,
     ALLOWED_TOKENS: settings.ALLOWED_TOKENS,
     MAX_FAILURES: parseInt(settings.MAX_FAILURES, 10),
+    HEALTH_CHECK_MODEL: settings.HEALTH_CHECK_MODEL,
     PROXY_URL: settings.PROXY_URL,
     TOOLS_CODE_EXECUTION_ENABLED:
       settings.TOOLS_CODE_EXECUTION_ENABLED === "true",
