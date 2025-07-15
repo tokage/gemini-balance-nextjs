@@ -1,6 +1,6 @@
-import { prisma as db } from "@/lib/db";
 import logger from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
+import { getSettings } from "./settings";
 
 /**
  * Extracts the API key from the request headers or query parameters.
@@ -8,14 +8,22 @@ import { NextRequest, NextResponse } from "next/server";
  * @returns The API key string or null if not found.
  */
 function getApiKey(request: NextRequest): string | null {
+  // 1. Check for standard 'Authorization: Bearer <token>'
   const authHeader = request.headers.get("Authorization");
   if (authHeader && authHeader.startsWith("Bearer ")) {
     return authHeader.substring(7);
   }
 
+  // 2. Check for 'key' in query parameters
   const keyFromQuery = request.nextUrl.searchParams.get("key");
   if (keyFromQuery) {
     return keyFromQuery;
+  }
+
+  // 3. Check for non-standard 'x-goog-api-key' header for Google SDK compatibility
+  const googleHeader = request.headers.get("x-goog-api-key");
+  if (googleHeader) {
+    return googleHeader;
   }
 
   return null;
@@ -51,25 +59,37 @@ export async function isAuthenticated(
   }
 
   try {
-    const keyExists = await db.apiKey.findUnique({
-      where: { key: apiKey },
-    });
+    const settings = await getSettings();
+    const allowedTokens = settings.ALLOWED_TOKENS.split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
 
-    if (keyExists) {
-      // The key is valid.
-      return null;
-    } else {
+    // If ALLOWED_TOKENS is not configured, deny all requests for security.
+    if (allowedTokens.length === 0) {
       logger.warn(
-        `Authentication failed: Invalid API key provided: ${apiKey.substring(
-          0,
-          8
-        )}...`
+        `Authentication failed: No ALLOWED_TOKENS configured in settings.`
+      );
+      return new NextResponse(
+        JSON.stringify({
+          error: {
+            message: "Service not configured for API access.",
+            type: "server_error",
+            code: "no_allowed_tokens",
+          },
+        }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!allowedTokens.includes(apiKey)) {
+      logger.warn(
+        `Authentication failed: Provided API key is not in the allowed list.`
       );
       return new NextResponse(
         JSON.stringify({
           error: {
             message:
-              "Incorrect API key provided. You can find your API key at https://platform.openai.com/account/api-keys.",
+              "Incorrect API key provided. The provided API key is not authorized for this service.",
             type: "invalid_request_error",
             code: "invalid_api_key",
           },
@@ -80,6 +100,9 @@ export async function isAuthenticated(
         }
       );
     }
+
+    // If we are here, the key is authorized to use the service.
+    return null;
   } catch (error) {
     logger.error({ error }, "Database error during API key validation.");
     return new NextResponse(

@@ -1,4 +1,3 @@
-import { isAuthenticated } from "@/lib/auth";
 import { callGeminiApi } from "@/lib/gemini-client";
 import {
   OpenAIChatMessage,
@@ -116,10 +115,10 @@ function transformGeminiStreamToOpenAIStream(
 }
 
 export async function POST(request: NextRequest) {
-  const authError = await isAuthenticated(request);
-  if (authError) {
-    return authError;
-  }
+  // The 'isAuthenticated' function is now called within the middleware,
+  // so it's not needed here anymore.
+
+  // We proceed directly to the main logic.
 
   try {
     const requestBody: OpenAIChatRequest = await request.json();

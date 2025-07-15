@@ -14,7 +14,11 @@ interface ConfigFormProps {
 
 export function ConfigForm({ settings }: ConfigFormProps) {
   const [isPending, startTransition] = useTransition();
-  const [formData, setFormData] = useState<ParsedSettings>(settings);
+  // Don't pre-fill the auth token for security reasons
+  const [formData, setFormData] = useState<ParsedSettings>({
+    ...settings,
+    AUTH_TOKEN: "",
+  });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value, type, checked } = e.target;
@@ -46,9 +50,10 @@ export function ConfigForm({ settings }: ConfigFormProps) {
         <Label htmlFor="AUTH_TOKEN">Auth Token</Label>
         <Input
           id="AUTH_TOKEN"
+          type="password"
           value={formData.AUTH_TOKEN}
           onChange={handleInputChange}
-          placeholder="Admin UI authentication token"
+          placeholder="Leave blank to keep current token"
         />
       </div>
       <div className="space-y-2">

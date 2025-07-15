@@ -7,6 +7,7 @@
 import { prisma } from "@/lib/db";
 import { getKeyManager, resetKeyManager } from "@/lib/key-manager";
 import { ParsedSettings, resetSettings } from "@/lib/settings";
+import bcrypt from "bcrypt";
 import { revalidatePath } from "next/cache";
 
 export async function addApiKeys(keysString: string) {
@@ -162,7 +163,20 @@ export async function updateSetting(key: string, value: string) {
 
 export async function updateSettings(settings: ParsedSettings) {
   try {
-    const updates = Object.entries(settings).map(([key, value]) => {
+    const settingsToUpdate: Omit<ParsedSettings, "AUTH_TOKEN"> & {
+      AUTH_TOKEN?: string;
+    } = { ...settings };
+
+    // Handle AUTH_TOKEN separately
+    if (settings.AUTH_TOKEN) {
+      const hashedToken = await bcrypt.hash(settings.AUTH_TOKEN, 10);
+      settingsToUpdate.AUTH_TOKEN = hashedToken;
+    } else {
+      // If the token is empty, we don't update it.
+      delete settingsToUpdate.AUTH_TOKEN;
+    }
+
+    const updates = Object.entries(settingsToUpdate).map(([key, value]) => {
       let dbValue: string;
       if (typeof value === "boolean") {
         dbValue = value.toString();
@@ -171,7 +185,7 @@ export async function updateSettings(settings: ParsedSettings) {
       } else if (typeof value === "object") {
         dbValue = JSON.stringify(value);
       } else {
-        dbValue = value;
+        dbValue = value as string;
       }
       return prisma.setting.upsert({
         where: { key },
