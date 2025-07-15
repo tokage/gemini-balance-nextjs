@@ -57,15 +57,15 @@
   - [x] 如果 Cookie 不存在，则立即重定向到登录页 `/`。
   - [x] **不在此处进行令牌内容验证**。
 
-- [ ] **1.2.4: 在管理后台根布局进行最终验证**
-  - [ ] 打开 `src/app/admin/layout.tsx`。
-  - [ ] 将其转换为 `async` 服务器组件。
-  - [ ] 在组件内部：
-    - 从 `cookies()` 中读取明文的 `auth_token`。
-    - 从数据库 `Settings` 表中读取**哈希值**形式的 `AUTH_TOKEN`。
-    - 使用 `bcrypt.compare()` 比较明文 Cookie 和数据库哈希值。
-    - 如果不匹配或任一值不存在，则调用 `redirect('/')` 将用户踢出。
-    - 如果匹配，则正常渲染子组件。
+- [x] **1.2.4: 在管理后台根布局进行最终验证**
+  - [x] 打开 `src/app/admin/layout.tsx`。
+  - [x] 将其转换为 `async` 服务器组件。
+  - [x] 在组件内部：
+    - [x] 从 `cookies()` 中读取明文的 `auth_token`。
+    - [x] 从数据库 `Settings` 表中读取**哈希值**形式的 `AUTH_TOKEN`。
+    - [x] 使用 `bcrypt.compare()` 比较明文 Cookie 和数据库哈希值。
+    - [x] 如果不匹配或任一值不存在，则调用 `redirect('/')` 将用户踢出。
+    - [x] 如果匹配，则正常渲染子组件。
 
 ---
 
