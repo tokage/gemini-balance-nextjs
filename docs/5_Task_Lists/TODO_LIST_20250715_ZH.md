@@ -73,38 +73,32 @@
 
 ### 任务 2.1: 清理和统一认证逻辑
 
-- [ ] **2.1.1: 移除冗余的认证检查**
-
-  - [ ] 检查并移除 `src/app/page.tsx` 或其他组件中任何残留的、手动的 Cookie 检查逻辑，因为中间件现在是唯一的保护屏障。
-
-- [ ] **2.1.2: 简化页面逻辑**
-  - [ ] 确保 `src/app/page.tsx` 只负责展示登录表单，不包含任何重定向或认证逻辑。
-  - [ ] 确保 `src/app/admin/*` 下的页面不再需要各自进行认证检查。
+- [x] **2.1.1: 移除冗余的认证检查**
+  - [x] 检查并移除 `src/app/page.tsx` 或其他组件中任何残留的、手动的 Cookie 检查逻辑，因为中间件现在是唯一的保护屏障。
+- [x] **2.1.2: 简化页面逻辑**
+  - [x] 确保 `src/app/page.tsx` 只负责展示登录表单，不包含任何重定向或认证逻辑。
+  - [x] 确保 `src/app/admin/*` 下的页面不再需要各自进行认证检查。
 
 ### 任务 2.2: 修复并规范化数据库迁移脚本
 
-- [ ] **2.2.1: 修正 `package.json`**
-
-  - [ ] 打开 `package.json` 文件。
-  - [ ] 找到 `"db:migrate"` 脚本。
-  - [ ] 将其值从 `"tsx scripts/migrate.ts"` 修改为 `"prisma migrate dev"`。
-
-- [ ] **2.2.2: 更新文档**
-  - [ ] 打开 `README.md` 或 `docs/README_ZH.md`。
-  - [ ] 添加一个新的 "数据库迁移" 章节。
-  - [ ] 在该章节中，分别说明开发环境 (`pnpm run db:migrate`) 和生产环境 (`pnpm dlx prisma migrate deploy`) 的命令和用途。
+- [x] **2.2.1: 修正 `package.json`**
+  - [x] 打开 `package.json` 文件。
+  - [x] 找到 `"db:migrate"` 脚本。
+  - [x] 将其值从 `"tsx scripts/migrate.ts"` 修改为 `"prisma migrate dev"`。
+- [x] **2.2.2: 更新文档**
+  - [x] 打开 `README.md` 或 `docs/README_ZH.md`。
+  - [x] 添加一个新的 "数据库迁移" 章节。
+  - [x] 在该章节中，分别说明开发环境 (`pnpm run db:migrate`) 和生产环境 (`pnpm dlx prisma migrate deploy`) 的命令和用途。
 
 ### 任务 2.3: 专业的 UI/UX 基础建设
 
-- [ ] **2.3.1: 更新应用元数据**
-
-  - [ ] 打开 `src/app/layout.tsx`。
-  - [ ] 修改 `metadata` 对象，设置一个有意义的 `title` 和 `description`。
-
-- [ ] **2.3.2: 建立真正的仪表盘首页**
-  - [ ] 打开 `src/app/admin/page.tsx`。
-  - [ ] 移除 Next.js 默认的欢迎内容。
-  - [ ] 设计并实现一个新的仪表盘布局，可以包含一些卡片（Card）组件，用于未来展示关键统计数据。
+- [x] **2.3.1: 更新应用元数据**
+  - [x] 打开 `src/app/layout.tsx`。
+  - [x] 修改 `metadata` 对象，设置一个有意义的 `title` 和 `description`。
+- [x] **2.3.2: 建立真正的仪表盘首页**
+  - [x] 打开 `src/app/admin/page.tsx`。
+  - [x] 移除 Next.js 默认的欢迎内容。
+  - [x] 设计并实现一个新的仪表盘布局，可以包含一些卡片（Card）组件，用于未来展示关键统计数据。
 
 ---
 

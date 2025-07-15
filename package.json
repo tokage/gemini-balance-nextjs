@@ -7,7 +7,7 @@
         "build": "next build",
         "start": "next start",
         "lint": "next lint",
-        "db:migrate": "tsx scripts/migrate.ts",
+        "db:migrate": "prisma migrate dev",
         "postinstall": "prisma generate"
     },
     "dependencies": {
