@@ -39,16 +39,16 @@
 
   - [x] 运行 `pnpm add bcrypt` 和 `pnpm add -D @types/bcrypt` 安装依赖。
 
-- [ ] **1.2.2: 重构服务器端登录操作 (`actions.ts`)**
+- [x] **1.2.2: 重构服务器端登录操作 (`actions.ts`)**
 
-  - [ ] 打开 `src/app/auth/actions.ts`。
-  - [ ] 导入 `bcrypt`。
-  - [ ] 修改 `login` 服务器操作：
-    - **首次设置**: 当从数据库获取的 `AUTH_TOKEN` 为空时，使用 `bcrypt.hash()` 计算用户提交令牌的哈希值，并将**哈希值**存入数据库。
-    - **后续登录**: 当数据库中存在 `AUTH_TOKEN` (哈希值) 时，使用 `bcrypt.compare()` 比较用户提交的明文令牌和数据库中存储的哈希值。
-    - **成功处理**: 验证成功后，将**明文令牌**存入 `httpOnly` 的 `auth_token` Cookie 中，并从服务器端 `redirect('/admin')`。
-    - **失败处理**: 验证失败时，返回明确的错误信息。
-  - [ ] 修改 `logout` 操作，确保其能正确删除 Cookie 并重定向到根路径 `/`。
+  - [x] 打开 `src/app/auth/actions.ts`。
+  - [x] 导入 `bcrypt`。
+  - [x] 修改 `login` 服务器操作：
+    - [x] **首次设置**: 当从数据库获取的 `AUTH_TOKEN` 为空时，使用 `bcrypt.hash()` 计算用户提交令牌的哈希值，并将**哈希值**存入数据库。
+    - [x] **后续登录**: 当数据库中存在 `AUTH_TOKEN` (哈希值) 时，使用 `bcrypt.compare()` 比较用户提交的明文令牌和数据库中存储的哈希值。
+    - [x] **成功处理**: 验证成功后，将**明文令牌**存入 `httpOnly` 的 `auth_token` Cookie 中，并从服务器端 `redirect('/admin')`。
+    - [x] **失败处理**: 验证失败时，返回明确的错误信息。
+  - [x] 修改 `logout` 操作，确保其能正确删除 Cookie 并重定向到根路径 `/`。
 
 - [ ] **1.2.3: 实现中间件进行快速路径检查**
 
