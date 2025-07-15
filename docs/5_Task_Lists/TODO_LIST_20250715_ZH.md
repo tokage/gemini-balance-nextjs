@@ -33,29 +33,39 @@
   - [x] 确定所有需要保护的代理路由文件，例如 `src/app/gemini/v1beta/[...model]/route.ts` 等。
   - [x] 在所有相关的 `route.ts` 文件中，重复 **1.1.2** 的集成步骤。
 
-### 任务 1.2: 简化并加固管理后台认证
+### 任务 1.2: 简化并加固管理后台认证 (哈希方案)
 
-- [ ] **1.2.1: 创建服务器端登录操作**
+- [x] **1.2.1: 安装并配置哈希库**
+
+  - [x] 运行 `pnpm add bcrypt` 和 `pnpm add -D @types/bcrypt` 安装依赖。
+
+- [ ] **1.2.2: 重构服务器端登录操作 (`actions.ts`)**
 
   - [ ] 打开 `src/app/auth/actions.ts`。
-  - [ ] 创建一个名为 `login` 的异步服务器操作 (Server Action)。
-  - [ ] 该操作接收用户提交的 `token`。
-  - [ ] 在函数内部，安全地将 `token` 与 `process.env.AUTH_TOKEN` 进行比较。
-  - [ ] 如果验证成功，使用 `cookies().set()` 方法设置一个名为 `auth_token` 的安全 Cookie (应设为 `httpOnly`, `secure`, `sameSite: 'lax'`)。
-  - [ ] 如果验证失败，返回一个错误信息。
+  - [ ] 导入 `bcrypt`。
+  - [ ] 修改 `login` 服务器操作：
+    - **首次设置**: 当从数据库获取的 `AUTH_TOKEN` 为空时，使用 `bcrypt.hash()` 计算用户提交令牌的哈希值，并将**哈希值**存入数据库。
+    - **后续登录**: 当数据库中存在 `AUTH_TOKEN` (哈希值) 时，使用 `bcrypt.compare()` 比较用户提交的明文令牌和数据库中存储的哈希值。
+    - **成功处理**: 验证成功后，将**明文令牌**存入 `httpOnly` 的 `auth_token` Cookie 中，并从服务器端 `redirect('/admin')`。
+    - **失败处理**: 验证失败时，返回明确的错误信息。
+  - [ ] 修改 `logout` 操作，确保其能正确删除 Cookie 并重定向到根路径 `/`。
 
-- [ ] **1.2.2: 更新登录页面以使用服务器操作**
+- [ ] **1.2.3: 实现中间件进行快速路径检查**
 
-  - [ ] 打开 `src/app/page.tsx` (或 `src/app/LoginForm.tsx`)。
-  - [ ] 将登录表单的 `action` 指向 `login` 服务器操作。
-  - [ ] 移除所有在客户端进行的 `AUTH_TOKEN` 比较或 Cookie 设置逻辑。
-
-- [ ] **1.2.3: 实现中间件保护**
   - [ ] 打开 `src/middleware.ts`。
-  - [ ] 在 `middleware` 函数中，检查请求的路径是否以 `/admin` 开头。
-  - [ ] 如果是，从 `request.cookies` 中获取 `auth_token`。
-  - [ ] 验证 `auth_token` 的值是否与 `process.env.AUTH_TOKEN` 一致。
-  - [ ] 如果 Cookie 无效或不存在，使用 `NextResponse.redirect()` 将用户重定向到登录页 (`/`)。
+  - [ ] 对于访问 `/admin/*` 的请求，只检查 `auth_token` Cookie 是否**存在**。
+  - [ ] 如果 Cookie 不存在，则立即重定向到登录页 `/`。
+  - [ ] **不在此处进行令牌内容验证**。
+
+- [ ] **1.2.4: 在管理后台根布局进行最终验证**
+  - [ ] 打开 `src/app/admin/layout.tsx`。
+  - [ ] 将其转换为 `async` 服务器组件。
+  - [ ] 在组件内部：
+    - 从 `cookies()` 中读取明文的 `auth_token`。
+    - 从数据库 `Settings` 表中读取**哈希值**形式的 `AUTH_TOKEN`。
+    - 使用 `bcrypt.compare()` 比较明文 Cookie 和数据库哈希值。
+    - 如果不匹配或任一值不存在，则调用 `redirect('/')` 将用户踢出。
+    - 如果匹配，则正常渲染子组件。
 
 ---
 
