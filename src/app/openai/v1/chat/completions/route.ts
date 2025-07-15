@@ -5,6 +5,7 @@ import {
   OpenAIChatRequest,
   geminiToOpenAiStreamChunk,
 } from "@/lib/google-adapter";
+import { callImagenApi } from "@/lib/imagen-client";
 import logger from "@/lib/logger";
 import {
   Content,
@@ -123,6 +124,41 @@ export async function POST(request: NextRequest) {
   try {
     const requestBody: OpenAIChatRequest = await request.json();
     const model = requestBody.model || "gemini-pro";
+
+    // Route to image generation if the model indicates it
+    if (model.includes("imagen")) {
+      const lastMessage = requestBody.messages[requestBody.messages.length - 1];
+      const imageResponse = await callImagenApi({
+        prompt: lastMessage.content,
+        n: 1,
+        size: "1024x1024",
+        response_format: "url",
+      });
+
+      // Adapt the response to a chat-like format
+      const chatResponse = {
+        id: `chatcmpl-${Date.now()}`,
+        object: "chat.completion",
+        created: Math.floor(Date.now() / 1000),
+        model: model,
+        choices: [
+          {
+            index: 0,
+            message: {
+              role: "assistant",
+              content: `Generated image URL: ${imageResponse.data[0].url}`,
+            },
+            finish_reason: "stop",
+          },
+        ],
+        usage: {
+          prompt_tokens: 0,
+          completion_tokens: 0,
+          total_tokens: 0,
+        },
+      };
+      return NextResponse.json(chatResponse);
+    }
 
     const geminiRequest = adaptOpenAIRequestToGemini(requestBody);
 
