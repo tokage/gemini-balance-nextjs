@@ -1,16 +1,24 @@
 "use client";
 
+import { login } from "@/app/auth/actions";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { Dictionary } from "@/lib/dictionaries";
 import Link from "next/link";
 import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { login } from "./actions";
 
 type FormState = {
   error?: string;
   success?: boolean;
 };
 
-function SubmitButton({ disabled }: { disabled: boolean }) {
+function SubmitButton({
+  disabled,
+  dictionary,
+}: {
+  disabled: boolean;
+  dictionary: Dictionary["loginForm"];
+}) {
   const { pending } = useFormStatus();
   return (
     <button
@@ -18,23 +26,24 @@ function SubmitButton({ disabled }: { disabled: boolean }) {
       disabled={pending || disabled}
       className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-400"
     >
-      {pending ? "Signing in..." : "Sign in"}
+      {pending ? dictionary.signingIn : dictionary.signIn}
     </button>
   );
 }
 
-export default function AuthPage() {
+export default function LoginForm({
+  dictionary,
+}: {
+  dictionary: Dictionary["loginForm"];
+}) {
   const [state, formAction] = useActionState<FormState, FormData>(login, {});
   const [token, setToken] = useState("");
   const [hasAuthCookie, setHasAuthCookie] = useState(false);
 
   useEffect(() => {
-    // On component mount, check if the auth cookie exists.
     if (document.cookie.includes("auth_token=")) {
       setHasAuthCookie(true);
     }
-
-    // If the login action was successful, redirect.
     if (state?.success) {
       window.location.href = "/admin";
     }
@@ -43,9 +52,12 @@ export default function AuthPage() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50">
       <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
-        <h1 className="text-2xl font-bold text-center text-gray-900">
-          Admin Access
-        </h1>
+        <div className="flex justify-between items-center">
+          <h1 className="text-2xl font-bold text-gray-900">
+            {dictionary.title}
+          </h1>
+          <LanguageSwitcher />
+        </div>
 
         {hasAuthCookie ? (
           <div className="text-center">
@@ -69,7 +81,7 @@ export default function AuthPage() {
                 htmlFor="token"
                 className="block text-sm font-medium text-gray-700"
               >
-                Authentication Token
+                {dictionary.tokenLabel}
               </label>
               <input
                 id="token"
@@ -85,7 +97,7 @@ export default function AuthPage() {
               <p className="text-sm text-red-600">{state.error}</p>
             )}
             <div>
-              <SubmitButton disabled={!token} />
+              <SubmitButton disabled={!token} dictionary={dictionary} />
             </div>
           </form>
         )}

@@ -1,13 +1,11 @@
 import { Locale } from "@/i18n-config";
-import { getDictionary } from "@/lib/get-dictionary";
-import LoginForm from "./LoginForm";
+import { redirect } from "next/navigation";
 
-export default async function Home({
-  params: paramsPromise,
+export default async function RootPage({
+  params,
 }: {
   params: Promise<{ lang: Locale }>;
 }) {
-  const params = await paramsPromise;
-  const dictionary = await getDictionary(params.lang);
-  return <LoginForm dictionary={dictionary.loginForm} />;
+  const { lang } = await params;
+  redirect(`/${lang}/admin`);
 }

@@ -1,10 +1,13 @@
 "use client";
 
+import { logout } from "@/app/auth/actions";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dictionary } from "@/lib/dictionaries";
+import { LogOut } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import LanguageSwitcher from "./LanguageSwitcher";
 
 export default function AdminClientLayout({
   children,
@@ -26,9 +29,14 @@ export default function AdminClientLayout({
   return (
     <div className="flex min-h-screen w-full flex-col">
       <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6">
-        {/* This can be a global nav or breadcrumbs */}
-        <div className="flex-1">{/* Potentially a search bar */}</div>
+        <div className="flex-1"></div>
         <LanguageSwitcher />
+        <form action={logout}>
+          <Button variant="outline" size="icon" type="submit">
+            <LogOut className="h-[1.2rem] w-[1.2rem]" />
+            <span className="sr-only">Logout</span>
+          </Button>
+        </form>
       </header>
       <main className="flex min-h-[calc(100vh_-_theme(spacing.16))] flex-1 flex-col gap-4 bg-muted/40 p-4 md:gap-8 md:p-10">
         <div className="mx-auto grid w-full max-w-6xl gap-2">

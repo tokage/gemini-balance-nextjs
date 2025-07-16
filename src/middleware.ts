@@ -50,7 +50,7 @@ export function middleware(request: NextRequest) {
       const url = request.nextUrl.clone();
       // Redirect to the login page for the current locale
       const locale = pathname.split("/")[1];
-      url.pathname = `/${locale}/`;
+      url.pathname = `/${locale}/auth`;
       return NextResponse.redirect(url);
     }
   }
