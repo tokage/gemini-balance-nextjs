@@ -14,12 +14,11 @@ export const metadata: Metadata = {
     "A Next.js implementation of the Gemini Balance project, serving as an intelligent AI gateway.",
 };
 
-export default async function RootLayout(props: {
+export default function RootLayout({
+  children,
+}: {
   children: React.ReactNode;
-  params: Promise<{ lang: string }>;
 }) {
-  const { children, params: paramsPromise } = props;
-  const params = await paramsPromise;
   return (
     <div className={`${GeistSans.variable} ${GeistMono.variable} antialiased`}>
       {children}
