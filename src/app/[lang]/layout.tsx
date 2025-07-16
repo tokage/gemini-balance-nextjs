@@ -21,11 +21,8 @@ export default async function RootLayout(props: {
   const { children, params: paramsPromise } = props;
   const params = await paramsPromise;
   return (
-    <html
-      lang={params.lang}
-      className={`${GeistSans.variable} ${GeistMono.variable}`}
-    >
-      <body className="antialiased">{children}</body>
-    </html>
+    <div className={`${GeistSans.variable} ${GeistMono.variable} antialiased`}>
+      {children}
+    </div>
   );
 }

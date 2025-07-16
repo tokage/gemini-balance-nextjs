@@ -9,16 +9,21 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { i18n } from "@/i18n-config";
 import { Globe } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 export default function LanguageSwitcher() {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const handleSwitchLanguage = (newLocale: string) => {
-    // e.g. /en/admin -> /zh/admin
-    const newPath = pathname.replace(/^\/[a-z]{2}/, `/${newLocale}`);
-    router.push(newPath);
+    // This regex looks for a locale at the beginning of the path,
+    // followed by either a slash or the end of the string.
+    const regex = new RegExp(`^/(${i18n.locales.join("|")})(?=/|$)`);
+    const newPath = pathname.replace(regex, `/${newLocale}`);
+
+    const queryString = searchParams.toString();
+    router.push(`${newPath}${queryString ? `?${queryString}` : ""}`);
   };
 
   return (
