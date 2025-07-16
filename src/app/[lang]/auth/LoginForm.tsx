@@ -4,7 +4,7 @@ import { login } from "@/app/auth/actions";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { Dictionary } from "@/lib/dictionaries";
 import Link from "next/link";
-import { useActionState, useEffect, useState } from "react";
+import { Suspense, useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 type FormState = {
@@ -56,7 +56,9 @@ export default function LoginForm({
           <h1 className="text-2xl font-bold text-gray-900">
             {dictionary.title}
           </h1>
-          <LanguageSwitcher />
+          <Suspense fallback={<div className="w-10 h-10" />}>
+            <LanguageSwitcher />
+          </Suspense>
         </div>
 
         {hasAuthCookie ? (

@@ -17,6 +17,9 @@ export default function LanguageSwitcher() {
   const searchParams = useSearchParams();
 
   const handleSwitchLanguage = (newLocale: string) => {
+    // Set cookie for language preference
+    document.cookie = `NEXT_LOCALE=${newLocale}; path=/; max-age=31536000`;
+
     // This regex looks for a locale at the beginning of the path,
     // followed by either a slash or the end of the string.
     const regex = new RegExp(`^/(${i18n.locales.join("|")})(?=/|$)`);
