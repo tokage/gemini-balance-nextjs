@@ -35,7 +35,11 @@ model Setting {
 }
 
 model ApiKey {
-  id        Int      @id @default(autoincrement())
-  key       String   @unique
-  createdAt DateTime @default(now())
+  id          Int      @id @default(autoincrement())
+  key         String   @unique
+  createdAt   DateTime @default(now())
+  lastUsed    DateTime?
+  lastChecked DateTime?
+  failCount   Int      @default(0)
+  enabled     Boolean  @default(true)
 }

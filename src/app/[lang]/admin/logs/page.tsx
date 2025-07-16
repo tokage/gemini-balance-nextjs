@@ -1,5 +1,3 @@
-import { getLogs } from "@/app/admin/actions";
-import { LogViewer } from "@/app/admin/LogViewer";
 import {
   Card,
   CardContent,
@@ -7,16 +5,25 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Locale } from "@/i18n-config";
+import { getDictionary } from "@/lib/get-dictionary";
+import { getLogs } from "../actions";
+import { LogViewer } from "../LogViewer";
 
 export const revalidate = 0; // Disable caching
 
 interface LogsPageProps {
-  params: Promise<object>; // This route has no dynamic params
+  params: Promise<{ lang: Locale }>;
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
-export default async function LogsPage(props: LogsPageProps) {
-  const searchParams = await props.searchParams;
+export default async function LogsPage({
+  params: paramsPromise,
+  searchParams: searchParamsPromise,
+}: LogsPageProps) {
+  const { lang } = await paramsPromise;
+  const searchParams = await searchParamsPromise;
+  const dictionary = await getDictionary(lang);
   const logType = searchParams.type === "error" ? "error" : "request";
   const page = Number(searchParams.page) || 1;
   const search =
@@ -25,23 +32,19 @@ export default async function LogsPage(props: LogsPageProps) {
   const logData = await getLogs({
     logType,
     page,
-    search,
+    apiKey: search, // Assuming search is for apiKey for now
     limit: 15,
   });
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Log Center</CardTitle>
-        <CardDescription>
-          Review request and error logs for the system.
-        </CardDescription>
+        <CardTitle>{dictionary.logs.title}</CardTitle>
+        <CardDescription>{dictionary.logs.description}</CardDescription>
       </CardHeader>
       <CardContent>
         {logData.error ? (
-          <p className="text-sm text-red-500">
-            Could not load logs: {logData.error}
-          </p>
+          <p className="text-sm text-red-500">{logData.error}</p>
         ) : (
           <LogViewer
             logs={logData.logs}
@@ -49,7 +52,7 @@ export default async function LogsPage(props: LogsPageProps) {
             page={page}
             limit={15}
             logType={logType}
-            search={search}
+            dictionary={dictionary.logs}
           />
         )}
       </CardContent>
