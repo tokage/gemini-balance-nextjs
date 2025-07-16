@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 import "server-only";
 
 declare global {
@@ -7,8 +7,13 @@ declare global {
 }
 
 const createPrismaClient = () => {
+  const logLevels: Prisma.LogLevel[] =
+    process.env.NODE_ENV === "production"
+      ? ["warn", "error"]
+      : ["query", "info", "warn", "error"];
+
   const client = new PrismaClient({
-    log: ["query"],
+    log: logLevels,
   });
 
   return client;

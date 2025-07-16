@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { login } from "./actions";
@@ -54,12 +55,12 @@ export default function AuthPage() {
             <p className="text-gray-500 text-sm mt-2">
               这通常表明存在服务端配置或环境问题。
             </p>
-            <a
+            <Link
               href="/admin"
               className="mt-4 inline-block w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
             >
               重试访问后台
-            </a>
+            </Link>
           </div>
         ) : (
           <form action={formAction} className="space-y-6">
