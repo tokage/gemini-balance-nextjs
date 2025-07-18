@@ -28,41 +28,43 @@ export default function AdminClientLayout({
 
   return (
     <div className="flex min-h-screen w-full flex-col">
-      <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6">
-        <div className="flex-1"></div>
-        <LanguageSwitcher />
-        <form action={logout}>
-          <Button variant="outline" size="icon" type="submit">
-            <LogOut className="h-[1.2rem] w-[1.2rem]" />
-            <span className="sr-only">Logout</span>
-          </Button>
-        </form>
-      </header>
-      <main className="flex min-h-[calc(100vh_-_theme(spacing.16))] flex-1 flex-col gap-4 bg-muted/40 p-4 md:gap-8 md:p-10">
-        <div className="mx-auto grid w-full max-w-6xl gap-2">
-          <h1 className="text-3xl font-semibold">
-            {dictionary.dashboard.title}
-          </h1>
+      <header className="sticky top-0 flex h-16 items-center justify-between gap-4 border-b bg-background px-4 md:px-6">
+        {/* Left Side */}
+        <h1 className="text-xl font-semibold">{dictionary.dashboard.title}</h1>
+
+        {/* Center */}
+        <div className="flex-1 flex justify-center">
+          <Tabs value={getCurrentTab()} className="w-auto">
+            <TabsList>
+              <Link href={`/${lang}/admin`} passHref>
+                <TabsTrigger value="keys">{dictionary.nav.keys}</TabsTrigger>
+              </Link>
+              <Link href={`/${lang}/admin/config`} passHref>
+                <TabsTrigger value="config">
+                  {dictionary.nav.config}
+                </TabsTrigger>
+              </Link>
+              <Link href={`/${lang}/admin/logs`} passHref>
+                <TabsTrigger value="logs">{dictionary.nav.logs}</TabsTrigger>
+              </Link>
+            </TabsList>
+          </Tabs>
         </div>
+
+        {/* Right Side */}
+        <div className="flex items-center gap-4">
+          <LanguageSwitcher />
+          <form action={logout}>
+            <Button variant="outline" size="icon" type="submit">
+              <LogOut className="h-[1.2rem] w-[1.2rem]" />
+              <span className="sr-only">Logout</span>
+            </Button>
+          </form>
+        </div>
+      </header>
+      <main className="flex flex-1 flex-col gap-4 bg-muted/40 p-4 md:gap-8 md:p-10">
         <div className="mx-auto grid w-full max-w-6xl items-start gap-6">
-          <div className="grid gap-6">
-            <Tabs value={getCurrentTab()} className="w-full">
-              <TabsList>
-                <Link href={`/${lang}/admin`} passHref>
-                  <TabsTrigger value="keys">{dictionary.nav.keys}</TabsTrigger>
-                </Link>
-                <Link href={`/${lang}/admin/config`} passHref>
-                  <TabsTrigger value="config">
-                    {dictionary.nav.config}
-                  </TabsTrigger>
-                </Link>
-                <Link href={`/${lang}/admin/logs`} passHref>
-                  <TabsTrigger value="logs">{dictionary.nav.logs}</TabsTrigger>
-                </Link>
-              </TabsList>
-            </Tabs>
-            {children}
-          </div>
+          <div className="grid gap-6">{children}</div>
         </div>
       </main>
     </div>
