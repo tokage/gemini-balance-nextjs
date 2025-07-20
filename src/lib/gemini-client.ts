@@ -118,6 +118,11 @@ export async function callGeminiApi({
 
       if (statusCode >= 400 && statusCode < 500) {
         keyManager.handleApiFailure(apiKey);
+        // Also increment the failCount in the database
+        await prisma.apiKey.update({
+          where: { key: apiKey },
+          data: { failCount: { increment: 1 } },
+        });
       }
     }
   }

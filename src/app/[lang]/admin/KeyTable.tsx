@@ -26,8 +26,13 @@ import {
 import { Dictionary } from "@/lib/dictionaries";
 import { formatApiKey } from "@/lib/utils";
 import { MoreHorizontal } from "lucide-react";
-import { useState, useTransition } from "react";
-import { deleteApiKeys, resetKeysFailures, verifyApiKeys } from "./actions";
+import { useEffect, useState, useTransition } from "react";
+import {
+  deleteApiKeys,
+  getApiKeyStats,
+  resetKeysFailures,
+  verifyApiKeys,
+} from "./actions";
 import { KeyUsageDetail } from "./KeyUsageDetail";
 
 export type Key = {
@@ -36,6 +41,8 @@ export type Key = {
   isWorking: boolean;
   lastFailedAt: Date | null;
 };
+
+type KeyStats = Awaited<ReturnType<typeof getApiKeyStats>>;
 
 interface KeyTableProps {
   keys: Key[];
@@ -54,6 +61,15 @@ export function KeyTable({
 }: KeyTableProps) {
   const [isPending, startTransition] = useTransition();
   const [viewingKey, setViewingKey] = useState<string | null>(null);
+  const [stats, setStats] = useState<Record<string, KeyStats>>({});
+
+  useEffect(() => {
+    keys.forEach((key) => {
+      getApiKeyStats(key.key).then((keyStats) => {
+        setStats((prev) => ({ ...prev, [key.key]: keyStats }));
+      });
+    });
+  }, [keys]);
 
   const handleDelete = (key: string) => {
     const confirmMessage = dictionary.deleteConfirmation.replace(
@@ -138,6 +154,10 @@ export function KeyTable({
             <TableHead>{dictionary.key}</TableHead>
             <TableHead>{dictionary.status}</TableHead>
             <TableHead>{dictionary.failCount}</TableHead>
+            <TableHead>{dictionary.totalCalls}</TableHead>
+            <TableHead>{dictionary.last1m}</TableHead>
+            <TableHead>{dictionary.last1h}</TableHead>
+            <TableHead>{dictionary.last24h}</TableHead>
             <TableHead>{dictionary.lastFailedAt}</TableHead>
             <TableHead className="text-right">{dictionary.actions}</TableHead>
           </TableRow>
@@ -173,6 +193,10 @@ export function KeyTable({
                 </span>
               </TableCell>
               <TableCell>{key.failCount}</TableCell>
+              <TableCell>{stats[key.key]?.total.total ?? "..."}</TableCell>
+              <TableCell>{stats[key.key]?.["1m"].total ?? "..."}</TableCell>
+              <TableCell>{stats[key.key]?.["1h"].total ?? "..."}</TableCell>
+              <TableCell>{stats[key.key]?.["24h"].total ?? "..."}</TableCell>
               <TableCell>
                 {key.lastFailedAt
                   ? new Date(key.lastFailedAt).toLocaleString()

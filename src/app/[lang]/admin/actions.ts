@@ -8,6 +8,13 @@ import { ParsedSettings, resetSettings } from "@/lib/settings";
 import bcrypt from "bcrypt";
 import { revalidatePath } from "next/cache";
 
+type Stats = {
+  total: { total: number; failed: number };
+  "1m": { total: number; failed: number };
+  "1h": { total: number; failed: number };
+  "24h": { total: number; failed: number };
+};
+
 export async function addApiKeys(keysString: string) {
   const locale = await getLocale();
   const dictionary = await getDictionary(locale);
@@ -537,4 +544,83 @@ export async function clearAllLogs(logType: LogType) {
     console.error(`Failed to clear ${logType} logs:`, _error);
     return { error: t.error.failedToClear.replace("{logType}", logType) };
   }
+}
+
+async function getStats(apiKey?: string): Promise<Stats> {
+  const where = apiKey ? { apiKey } : {};
+  const now = new Date();
+  const oneMinuteAgo = new Date(now.getTime() - 1 * 60 * 1000);
+  const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+  const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+  try {
+    const queries = [
+      prisma.requestLog.count({
+        where: { ...where, createdAt: { gte: oneMinuteAgo } },
+      }),
+      prisma.requestLog.count({
+        where: { ...where, createdAt: { gte: oneMinuteAgo }, isSuccess: false },
+      }),
+      prisma.requestLog.count({
+        where: { ...where, createdAt: { gte: oneHourAgo } },
+      }),
+      prisma.requestLog.count({
+        where: { ...where, createdAt: { gte: oneHourAgo }, isSuccess: false },
+      }),
+      prisma.requestLog.count({
+        where: { ...where, createdAt: { gte: twentyFourHoursAgo } },
+      }),
+      prisma.requestLog.count({
+        where: {
+          ...where,
+          createdAt: { gte: twentyFourHoursAgo },
+          isSuccess: false,
+        },
+      }),
+    ];
+
+    queries.unshift(
+      prisma.requestLog.count({ where }),
+      prisma.requestLog.count({ where: { ...where, isSuccess: false } })
+    );
+
+    const results = await Promise.all(queries);
+
+    const [
+      totalCalls,
+      totalFailed,
+      callsLastMinute,
+      failedLastMinute,
+      callsLastHour,
+      failedLastHour,
+      callsLast24Hours,
+      failedLast24Hours,
+    ] = results;
+    return {
+      total: { total: totalCalls, failed: totalFailed },
+      "1m": { total: callsLastMinute, failed: failedLastMinute },
+      "1h": { total: callsLastHour, failed: failedLastHour },
+      "24h": { total: callsLast24Hours, failed: failedLast24Hours },
+    };
+  } catch (error) {
+    console.error(
+      `Failed to fetch stats${apiKey ? ` for key ${apiKey}` : ""}:`,
+      error
+    );
+    const emptyStats = {
+      total: { total: 0, failed: 0 },
+      "1m": { total: 0, failed: 0 },
+      "1h": { total: 0, failed: 0 },
+      "24h": { total: 0, failed: 0 },
+    };
+    return emptyStats;
+  }
+}
+
+export async function getSystemStats() {
+  return getStats();
+}
+
+export async function getApiKeyStats(apiKey: string) {
+  return getStats(apiKey);
 }

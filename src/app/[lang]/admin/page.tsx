@@ -8,7 +8,7 @@ import {
 import { Locale } from "@/i18n-config";
 import { getDictionary } from "@/lib/get-dictionary";
 import { getKeyManager } from "@/lib/key-manager";
-import { getApiCallStats, getKeyStats } from "./actions";
+import { getKeyStats, getSystemStats } from "./actions";
 import { AddKeyDialog } from "./AddKeyDialog";
 import { DashboardStats } from "./DashboardStats";
 import { KeyList } from "./KeyList";
@@ -24,10 +24,10 @@ export default async function AdminPage({
   const dictionary = await getDictionary(lang);
 
   // Fetch all data in parallel
-  const [keyManager, keyStats, apiCallStats] = await Promise.all([
+  const [keyManager, keyStats, systemStats] = await Promise.all([
     getKeyManager(),
     getKeyStats(),
-    getApiCallStats(),
+    getSystemStats(),
   ]);
 
   const keys = keyManager.getAllKeys();
@@ -39,19 +39,13 @@ export default async function AdminPage({
     invalid: keyStats.invalid ?? 0,
   };
 
-  const safeApiCallStats = {
-    lastMinute: apiCallStats.lastMinute ?? 0,
-    lastHour: apiCallStats.lastHour ?? 0,
-    last24Hours: apiCallStats.last24Hours ?? 0,
-  };
-
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-2xl font-semibold">{dictionary.dashboard.title}</h1>
 
       <DashboardStats
         keyStats={safeKeyStats}
-        apiCallStats={safeApiCallStats}
+        systemStats={systemStats}
         dictionary={{
           ...dictionary.dashboard,
           keyDetails: dictionary.keyDetails,
