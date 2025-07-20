@@ -32,12 +32,13 @@ You can read this document in [English](README.md).
 
 为了更好地理解本项目，我们建议按以下顺序探索文件：
 
-1.  **`prisma/schema.prisma`**: 定义了数据库结构，用于存储 API 密钥 (`ApiKey`) 和动态配置 (`Setting`)。
-2.  **`src/lib/settings.ts`**: 负责从数据库中获取和缓存所有应用配置的服务。这是所有配置的“单一真实来源”。
-3.  **`src/lib/key-manager.ts`**: `KeyManager` 类，负责所有 API 密钥的管理。它**只从数据库**加载密钥，处理轮换和失败跟踪。
-4.  **`src/middleware.ts`**: 所有请求的入口。它使用 `settings.ts` 在每个请求中动态获取认证令牌。
-5.  **`src/app/admin`**: 管理后台的代码，包括 UI 组件（如 `KeyTable.tsx`, `ConfigForm.tsx`）和包含所有管理逻辑的 `actions.ts` 文件。
-6.  **`/api/cron/health-check`**: 一个安全的 API 端点，当被调用时，会触发对失效 API 密钥的健康检查。
+1.  **`prisma/schema.prisma`**: 定义了用于**本地开发 (SQLite)** 的数据库结构。
+2.  **`prisma/schema.vercel.prisma`**: 定义了用于 **Vercel 部署 (PostgreSQL)** 的数据库结构。构建脚本会根据环境自动选择正确的 schema 文件。
+3.  **`src/lib/settings.ts`**: 负责从数据库中获取和缓存所有应用配置的服务。这是所有配置的“单一真实来源”。
+4.  **`src/lib/key-manager.ts`**: `KeyManager` 类，负责所有 API 密钥的管理。它**只从数据库**加载密钥，处理轮换和失败跟踪。
+5.  **`src/middleware.ts`**: 所有请求的入口。它使用 `settings.ts` 在每个请求中动态获取认证令牌。
+6.  **`src/app/admin`**: 管理后台的代码，包括 UI 组件（如 `KeyTable.tsx`, `ConfigForm.tsx`）和包含所有管理逻辑的 `actions.ts` 文件。
+7.  **`/api/cron/health-check`**: 一个安全的 API 端点，当被调用时，会触发对失效 API 密钥的健康检查。
 
 ## 快速上手
 
@@ -72,14 +73,14 @@ pnpm install
 
 ### 4. 配置环境变量
 
-创建一个 `.env.local` 文件。应用需要以下变量来连接数据库。
+创建一个 `.env.local` 文件。本地开发仅需 `DATABASE_URL` 这一个变量。
 
-- **`DATABASE_URL`**: 您的数据库连接字符串。默认的 `pnpm prisma migrate dev` 命令会在 `prisma/dev.db` 创建一个 SQLite 数据库。
+- **`DATABASE_URL`**: 您的数据库连接字符串。默认的 `pnpm prisma migrate dev` 命令会使用 `prisma/schema.prisma` 文件，并在 `prisma/dev.db` 创建一个 SQLite 数据库。您的文件应包含：
   ```
   DATABASE_URL="file:./prisma/dev.db"
   ```
 
-仅当您需要为 Google API 使用代理时，您才可能需要设置 `GOOGLE_API_HOST`。所有其他设置都通过 Web UI 进行管理。
+仅当您需要为 Google API 使用代理时，您才可能需要设置 `GOOGLE_API_HOST`。所有其他设置都在首次运行后通过 Web UI 进行管理。
 
 ### 4. 运行开发服务器
 
@@ -108,6 +109,39 @@ pnpm dev
     - 在 "Allowed API Tokens" (允许的 API 令牌) 字段中，添加您希望授权给客户端应用的访问令牌。
 
 现在，您的网关已完全配置并准备就绪。
+
+## 使用 Vercel 部署 (推荐)
+
+推荐使用 Vercel 进行部署，因为它提供了无缝的、基于 Git 的工作流、自动扩缩容以及集成的 PostgreSQL 数据库。
+
+### 1. Fork 本仓库
+
+首先，将此仓库 fork 到您自己的 GitHub 帐户。
+
+### 2. 创建 Vercel 项目
+
+1.  进入您的 Vercel 仪表盘，点击 "Add New... -> Project"。
+2.  导入您刚刚 fork 的仓库。Vercel 会自动检测到这是一个 Next.js 项目。
+
+### 3. 添加 Vercel Postgres 数据库
+
+1.  在您新的 Vercel 项目仪表盘中，导航到 **Storage** (存储) 标签页。
+2.  选择 **Postgres** 并点击 "Create Database" (创建数据库)。
+3.  选择一个区域，并将其连接到您的 `main` (或 `master`) 分支的项目。
+
+Vercel 现在会自动将 `DATABASE_URL` 环境变量注入到您项目的生产、预览和开发环境中。
+
+### 4. 部署
+
+向您的主分支推送一次提交 (或从 Vercel 仪表盘重新部署)。部署过程是完全自动化的：
+
+- Vercel 安装依赖 (`pnpm install`)。
+- `postinstall` 脚本 (`if [ -n "$VERCEL" ]...`) 会检测到 Vercel 环境并运行 `prisma generate --schema=./prisma/schema.vercel.prisma` 来生成一个与 PostgreSQL 兼容的客户端。
+- `build` 脚本 (`if [ -n "$VERCEL" ]...`) 同样会检测到 Vercel 环境并运行 `prisma migrate deploy --schema=./prisma/schema.vercel.prisma`，在构建应用前应用数据库迁移。
+
+### 5. 首次设置
+
+成功部署后，请遵循与本地开发指南中相同的“首次通过 Web UI 设置”步骤，但请使用您的 Vercel 域名 (例如, `https://your-project-name.vercel.app`) 访问应用。
 
 ## 使用 Docker 部署
 

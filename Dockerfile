@@ -23,8 +23,9 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # DATABASE_URL is required at build time for `prisma generate`.
-# All other settings are managed via the UI at runtime.
-ARG DATABASE_URL
+# We provide a default dummy value to create a generic, stateless image.
+# This will be overridden by runtime environment variables.
+ARG DATABASE_URL="file:./dummy.db"
 ENV DATABASE_URL=$DATABASE_URL
 
 # Generate Prisma client and build the project

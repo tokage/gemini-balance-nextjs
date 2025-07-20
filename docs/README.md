@@ -32,12 +32,13 @@ This version goes beyond a simple proxy, offering a robust feature set including
 
 To understand the project, we recommend exploring the files in the following order:
 
-1.  **`prisma/schema.prisma`**: Defines the database schema for storing API keys (`ApiKey`) and dynamic configurations (`Setting`).
-2.  **`src/lib/settings.ts`**: The service responsible for fetching and caching all application settings from the database. This is the single source of truth for configuration.
-3.  **`src/lib/key-manager.ts`**: The `KeyManager` class, responsible for all API key management. It loads keys **exclusively from the database**, handles rotation, and tracks failures.
-4.  **`src/middleware.ts`**: The entry point for all incoming requests. It uses `settings.ts` to fetch authentication tokens dynamically for every request.
-5.  **`src/app/admin`**: The code for the admin dashboard, including the UI components (`KeyTable.tsx`, `ConfigForm.tsx`, etc.) and the `actions.ts` file containing all server-side logic for management.
-6.  **`/api/cron/health-check`**: A secure API endpoint that, when called, triggers a health check to reactivate failing API keys.
+1.  **`prisma/schema.prisma`**: Defines the database schema for **local development (SQLite)**.
+2.  **`prisma/schema.vercel.prisma`**: Defines the database schema for **Vercel deployment (PostgreSQL)**. The build scripts automatically select the correct schema based on the environment.
+3.  **`src/lib/settings.ts`**: The service responsible for fetching and caching all application settings from the database. This is the single source of truth for configuration.
+4.  **`src/lib/key-manager.ts`**: The `KeyManager` class, responsible for all API key management. It loads keys **exclusively from the database**, handles rotation, and tracks failures.
+5.  **`src/middleware.ts`**: The entry point for all incoming requests. It uses `settings.ts` to fetch authentication tokens dynamically for every request.
+6.  **`src/app/admin`**: The code for the admin dashboard, including the UI components (`KeyTable.tsx`, `ConfigForm.tsx`, etc.) and the `actions.ts` file containing all server-side logic for management.
+7.  **`/api/cron/health-check`**: A secure API endpoint that, when called, triggers a health check to reactivate failing API keys.
 
 ## Getting Started
 
@@ -63,14 +64,14 @@ This will create a `prisma/dev.db` file.
 
 ### 3. Configure Environment Variables
 
-Create a `.env.local` file. The following variable is required for the application to connect to the database.
+Create a `.env.local` file. The only variable required for local development is `DATABASE_URL`.
 
-- **`DATABASE_URL`**: The connection string for your database. The default `pnpm prisma migrate dev` command will create a SQLite database at `prisma/dev.db`.
+- **`DATABASE_URL`**: The connection string for your database. The default `pnpm prisma migrate dev` command uses `prisma/schema.prisma` and will create a SQLite database at `prisma/dev.db`. Your file should contain:
   ```
   DATABASE_URL="file:./prisma/dev.db"
   ```
 
-You might also set `GOOGLE_API_HOST` if you need to use a proxy for the Google API. All other settings are managed via the Web UI.
+You might also set `GOOGLE_API_HOST` if you need to use a proxy for the Google API. All other settings are managed via the Web UI after the first run.
 
 ### 4. Run the Development Server
 
@@ -90,6 +91,39 @@ On the first run, the application has no API keys or secure authentication token
 4.  **Configure API Access**: Go to the **Configuration** tab and add any tokens you want to grant to your client applications in the "Allowed API Tokens" field.
 
 Your gateway is now fully configured and ready to use.
+
+## Deployment with Vercel (Recommended)
+
+Deploying on Vercel is the recommended method as it provides a seamless Git-based workflow, automatic scaling, and an integrated PostgreSQL database.
+
+### 1. Fork the Repository
+
+Start by forking this repository to your own GitHub account.
+
+### 2. Create a Vercel Project
+
+1.  Go to your Vercel dashboard and click "Add New... -> Project".
+2.  Import the repository you just forked. Vercel will automatically detect that it's a Next.js project.
+
+### 3. Add Vercel Postgres Database
+
+1.  In your new Vercel project's dashboard, navigate to the **Storage** tab.
+2.  Select **Postgres** and click "Create Database".
+3.  Choose a region and connect it to your project on the `main` (or `master`) branch.
+
+Vercel will now automatically inject the `DATABASE_URL` environment variable into your project's production, preview, and development environments.
+
+### 4. Deploy
+
+Push a commit to your main branch (or redeploy from the Vercel dashboard). The deployment process is fully automated:
+
+- Vercel installs dependencies (`pnpm install`).
+- The `postinstall` script (`if [ -n "$VERCEL" ]...`) detects the Vercel environment and runs `prisma generate --schema=./prisma/schema.vercel.prisma` to generate a PostgreSQL-compatible client.
+- The `build` script (`if [ -n "$VERCEL" ]...`) also detects the Vercel environment and runs `prisma migrate deploy --schema=./prisma/schema.vercel.prisma` to apply database migrations before building the application.
+
+### 5. First-Time Setup
+
+After a successful deployment, follow the same "First-Time Setup via Web UI" steps as in the local development guide, but access the application at your Vercel domain (e.g., `https://your-project-name.vercel.app`).
 
 ## Deployment with Docker
 

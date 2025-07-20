@@ -4,11 +4,11 @@
     "private": true,
     "scripts": {
         "dev": "next dev | pino-pretty",
-        "build": "next build",
+        "build": "if [ -n \"$VERCEL\" ]; then prisma migrate deploy --schema=./prisma/schema.vercel.prisma; fi && next build",
         "start": "next start",
         "lint": "next lint",
         "db:migrate": "prisma migrate dev",
-        "postinstall": "prisma generate"
+        "postinstall": "if [ -n \"$VERCEL\" ]; then prisma generate --schema=./prisma/schema.vercel.prisma; else prisma generate; fi"
     },
     "dependencies": {
         "@formatjs/intl-localematcher": "^0.6.1",
