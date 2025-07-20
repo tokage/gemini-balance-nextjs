@@ -9,7 +9,24 @@ services:
       - "3000:3000"
     environment:
       - GOOGLE_API_HOST=${GOOGLE_API_HOST}
-      - DATABASE_URL=file:/app/data/dev.db
+      - DATABASE_URL=postgresql://user:password@postgres:5432/mydatabase
     volumes:
       # Mount a data volume to persist the SQLite database
       - ./data:/app/data
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: mydatabase
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
