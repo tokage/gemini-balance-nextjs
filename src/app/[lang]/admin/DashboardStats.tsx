@@ -18,17 +18,17 @@ interface KeyStats {
   invalid: number;
 }
 
-interface ApiCallStats {
-  lastMinute: number;
-  lastHour: number;
-  last24Hours: number;
+interface SystemStats {
+  "1m": { total: number; failed: number };
+  "1h": { total: number; failed: number };
+  "24h": { total: number; failed: number };
 }
 
 import { Dictionary } from "@/lib/dictionaries";
 
 interface DashboardStatsProps {
   keyStats: KeyStats;
-  apiCallStats: ApiCallStats;
+  systemStats: SystemStats;
   dictionary: Dictionary["dashboard"] & {
     keyDetails: Dictionary["keyDetails"];
     apiCallDetails: Dictionary["apiCallDetails"];
@@ -37,7 +37,7 @@ interface DashboardStatsProps {
 
 export function DashboardStats({
   keyStats,
-  apiCallStats,
+  systemStats,
   dictionary,
 }: DashboardStatsProps) {
   return (
@@ -90,19 +90,19 @@ export function DashboardStats({
             </CardHeader>
             <CardContent className="grid grid-cols-3 gap-4 text-center">
               <div>
-                <p className="text-2xl font-bold">{apiCallStats.lastMinute}</p>
+                <p className="text-2xl font-bold">{systemStats["1m"].total}</p>
                 <p className="text-sm text-muted-foreground">
                   {dictionary.last1m}
                 </p>
               </div>
               <div>
-                <p className="text-2xl font-bold">{apiCallStats.lastHour}</p>
+                <p className="text-2xl font-bold">{systemStats["1h"].total}</p>
                 <p className="text-sm text-muted-foreground">
                   {dictionary.last1h}
                 </p>
               </div>
               <div>
-                <p className="text-2xl font-bold">{apiCallStats.last24Hours}</p>
+                <p className="text-2xl font-bold">{systemStats["24h"].total}</p>
                 <p className="text-sm text-muted-foreground">
                   {dictionary.last24h}
                 </p>
@@ -116,9 +116,9 @@ export function DashboardStats({
           </DialogHeader>
           <Tabs defaultValue="24h" className="w-full">
             <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="1m">{dictionary.last1mTab}</TabsTrigger>
-              <TabsTrigger value="1h">{dictionary.last1hTab}</TabsTrigger>
-              <TabsTrigger value="24h">{dictionary.last24hTab}</TabsTrigger>
+              <TabsTrigger value="1m">{dictionary.last1m}</TabsTrigger>
+              <TabsTrigger value="1h">{dictionary.last1h}</TabsTrigger>
+              <TabsTrigger value="24h">{dictionary.last24h}</TabsTrigger>
             </TabsList>
             <TabsContent value="1m">
               <ApiCallStatsDetail
