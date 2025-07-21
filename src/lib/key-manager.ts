@@ -1,4 +1,3 @@
-import { cycle } from "itertools";
 import { prisma } from "./db";
 import logger from "./logger";
 import { getSettings } from "./settings";
@@ -9,7 +8,7 @@ import { getSettings } from "./settings";
  */
 export class KeyManager {
   private keys: readonly string[];
-  private keyCycle: IterableIterator<string>;
+  private currentIndex: number;
   private failureCounts: Map<string, number>;
   private lastFailureTimes: Map<string, Date>;
   private readonly maxFailures: number;
@@ -22,7 +21,7 @@ export class KeyManager {
       );
     }
     this.keys = Object.freeze([...initialKeys]);
-    this.keyCycle = cycle(this.keys);
+    this.currentIndex = 0;
     this.failureCounts = new Map(this.keys.map((key) => [key, 0]));
     this.lastFailureTimes = new Map();
     this.maxFailures = maxFailures;
@@ -40,12 +39,20 @@ export class KeyManager {
     if (this.keys.length === 0) {
       throw new Error("No API keys available in the key manager.");
     }
+
+    // Start searching from the current index and loop through all keys once.
     for (let i = 0; i < this.keys.length; i++) {
-      const key = this.keyCycle.next().value;
+      const key = this.keys[this.currentIndex];
+
+      // Move to the next key for the next call (round-robin)
+      this.currentIndex = (this.currentIndex + 1) % this.keys.length;
+
       if (this.isKeyValid(key)) {
         return key;
       }
     }
+
+    // If we complete the loop and find no working keys.
     throw new Error(
       "All API keys are currently failing. Please check their validity or reset failure counts."
     );
