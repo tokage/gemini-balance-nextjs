@@ -43,7 +43,7 @@ export function LoginForm({
 
   return (
     <form action={formAction}>
-      <Card className="w-full max-w-sm">
+      <Card className="w-full max-w-md min-w-md">
         <CardHeader>
           <CardTitle className="text-2xl">{dict.loginPage.title}</CardTitle>
           <CardDescription>{dict.loginPage.description}</CardDescription>
