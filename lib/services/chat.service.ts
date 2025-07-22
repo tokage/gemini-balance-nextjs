@@ -1,5 +1,3 @@
-import { keyService } from "./key.service";
-
 // region: Types
 interface OpenAIMessage {
   role: "system" | "user" | "assistant";
@@ -75,17 +73,12 @@ interface OpenAIChatCompletion {
 export class ChatService {
   async createCompletion(
     request: OpenAIChatRequest,
-    requestOptions: { model: string }
+    requestOptions: { model: string; apiKey: string }
   ): Promise<OpenAIChatCompletion> {
     const geminiRequest = this.convertOpenAIMessagesToGemini(request.messages);
-    const apiKey = await keyService.getNextWorkingKey();
-
-    if (!apiKey) {
-      throw new Error("No available API keys");
-    }
 
     const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${requestOptions.model}:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${requestOptions.model}:generateContent?key=${requestOptions.apiKey}`,
       {
         method: "POST",
         headers: {
@@ -96,7 +89,6 @@ export class ChatService {
     );
 
     if (!geminiResponse.ok) {
-      await keyService.handleApiFailure(apiKey);
       throw new Error(
         `Gemini API request failed: ${geminiResponse.statusText}`
       );

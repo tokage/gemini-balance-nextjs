@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { GeminiChatResponse, OpenAIChatRequest } from "./chat.service";
 import { ChatService } from "./chat.service";
-import { keyService } from "./key.service";
 
 vi.mock("./key.service", () => ({
   keyService: {
@@ -61,7 +60,6 @@ describe("ChatService", () => {
         },
       };
 
-      vi.spyOn(keyService, "getNextWorkingKey").mockResolvedValue(mockApiKey);
       global.fetch = vi.fn().mockResolvedValue({
         ok: true,
         json: () => Promise.resolve(mockGeminiResponse),
@@ -69,9 +67,9 @@ describe("ChatService", () => {
 
       const result = await chatService.createCompletion(mockOpenAIRequest, {
         model: mockModel,
+        apiKey: mockApiKey,
       });
 
-      expect(keyService.getNextWorkingKey).toHaveBeenCalled();
       expect(global.fetch).toHaveBeenCalledWith(
         `https://generativelanguage.googleapis.com/v1beta/models/${mockModel}:generateContent?key=${mockApiKey}`,
         expect.any(Object)
