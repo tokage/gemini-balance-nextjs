@@ -46,6 +46,40 @@ export class KeyService {
       .set({ failureCount: 0 })
       .where(eq(apiKeys.key, apiKey));
   }
+
+  async recoverDisabledKeys(): Promise<{ recovered: number; failed: number }> {
+    const maxFailures = (await configService.get("MAX_FAILURES")) ?? 5;
+    const disabledKeys = await db
+      .select({
+        key: apiKeys.key,
+      })
+      .from(apiKeys)
+      .where(
+        and(eq(apiKeys.isEnabled, true), lt(apiKeys.failureCount, maxFailures))
+      );
+
+    let recovered = 0;
+    let failed = 0;
+
+    for (const { key } of disabledKeys) {
+      try {
+        // A simple health check could be to list models
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models?key=${key}`
+        );
+        if (response.ok) {
+          await this.resetKeyFailureCount(key);
+          recovered++;
+        } else {
+          failed++;
+        }
+      } catch {
+        failed++;
+      }
+    }
+
+    return { recovered, failed };
+  }
 }
 
 export const keyService = new KeyService();

@@ -11,7 +11,10 @@ export async function POST(request: Request) {
       const handler = (apiKey: string) =>
         chatService.createStreamCompletion(rest, { model, apiKey });
 
-      const streamResponse = await withRetryHandling(handler);
+      const streamResponse = await withRetryHandling(handler, {
+        modelName: model,
+        requestBody: rest,
+      });
       return new Response(streamResponse, {
         headers: {
           "Content-Type": "text/event-stream",
@@ -23,7 +26,10 @@ export async function POST(request: Request) {
       const handler = (apiKey: string) =>
         chatService.createCompletion(rest, { model, apiKey });
 
-      const chatCompletion = await withRetryHandling(handler);
+      const chatCompletion = await withRetryHandling(handler, {
+        modelName: model,
+        requestBody: rest,
+      });
       return NextResponse.json(chatCompletion);
     }
   } catch (error: unknown) {

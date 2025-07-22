@@ -1,4 +1,4 @@
-import { type InferSelectModel } from "drizzle-orm";
+import { type InferInsertModel, type InferSelectModel } from "drizzle-orm";
 import { int, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 // 存储所有配置项，如 auth_token, max_failures 等
@@ -27,6 +27,7 @@ export const requestLogs = sqliteTable("request_logs", {
 });
 
 export type RequestLog = InferSelectModel<typeof requestLogs>;
+export type InsertRequestLog = InferInsertModel<typeof requestLogs>;
 
 // 错误日志
 export const errorLogs = sqliteTable("error_logs", {
@@ -40,3 +41,4 @@ export const errorLogs = sqliteTable("error_logs", {
 });
 
 export type ErrorLog = InferSelectModel<typeof errorLogs>;
+export type InsertErrorLog = InferInsertModel<typeof errorLogs>;

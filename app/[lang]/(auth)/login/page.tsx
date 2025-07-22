@@ -8,7 +8,7 @@ export default async function LoginPage({
   params: { lang: "en" | "zh" };
 }) {
   const dict = await getDictionary(lang);
-  const loginAction = createLoginAction(lang);
+  const loginAction = createLoginAction.bind(null, lang);
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-950">

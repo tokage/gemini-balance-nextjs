@@ -1,36 +1,71 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Gemini Balance Next.js
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fyour-username%2Fgemini-balance-nextjs)
+
+This is a Next.js port of the original [Gemini Balance](https://github.com/gemini-im/gemini-balance), a load-balancing proxy for Google Gemini Pro API keys. This version is designed to be deployed on the edge (Vercel/Cloudflare) for minimal latency and cost.
+
+## Features
+
+- **OpenAI-Compatible API**: Use your favorite OpenAI clients with the Gemini Pro model.
+- **Load Balancing**: Distributes requests across multiple Gemini API keys.
+- **Fault Tolerance**: Automatically retries requests with a different key on failure.
+- **Edge-First**: Optimized for serverless deployment on Vercel and Cloudflare.
+- **Modern UI**: A sleek and responsive admin dashboard built with Next.js App Router and shadcn/ui.
 
 ## Getting Started
 
-First, run the development server:
+### 1. Prerequisites
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- Node.js (v18 or later)
+- pnpm
+- A Vercel or Cloudflare account
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Installation
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1.  Clone the repository:
+    ```bash
+    git clone https://github.com/your-username/gemini-balance-nextjs.git
+    cd gemini-balance-nextjs
+    ```
+2.  Install dependencies:
+    ```bash
+    pnpm install
+    ```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 3. Local Development
 
-## Learn More
+1.  Set up your database. For local development, you can use a local SQLite database. Create a `.env` file and add the following:
+    ```
+    DATABASE_URL="file:./local.db"
+    ```
+2.  Run the database migrations:
+    ```bash
+    pnpm drizzle-kit push:sqlite
+    ```
+3.  Start the development server:
+    ```bash
+    pnpm dev
+    ```
+4.  Open [http://localhost:3000](http://localhost:3000) to access the admin dashboard.
 
-To learn more about Next.js, take a look at the following resources:
+## Deployment
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Vercel (Recommended)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1.  Click the "Deploy with Vercel" button above.
+2.  Follow the instructions to create a new project.
+3.  Add a Vercel KV database and connect it to your project.
+4.  Set the `DATABASE_URL` environment variable to the one provided by Vercel KV.
+5.  Deploy!
 
-## Deploy on Vercel
+### Cloudflare
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1.  Create a new Cloudflare Pages project and connect it to your Git repository.
+2.  Create a new D1 database.
+3.  Add the D1 binding to your Pages project.
+4.  Set the `DATABASE_URL` environment variable to the one provided by D1.
+5.  Deploy!
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## License
+
+This project is licensed under the MIT License.
