@@ -78,6 +78,62 @@ describe("ChatService", () => {
     });
   });
 
+  describe("createStreamCompletion", () => {
+    it("should call Gemini stream API and return a transformed stream", async () => {
+      const mockApiKey = "test-api-key";
+      const mockModel = "gemini-pro";
+      const mockOpenAIRequest: OpenAIChatRequest = {
+        messages: [{ role: "user", content: "Hello" }],
+      };
+      const encoder = new TextEncoder();
+      const mockGeminiStream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(
+            encoder.encode(
+              'data: {"candidates": [{"content": {"parts": [{"text": "Hello"}]}}]}\n\n'
+            )
+          );
+          controller.enqueue(
+            encoder.encode(
+              'data: {"candidates": [{"content": {"parts": [{"text": " World"}]}}]}\n\n'
+            )
+          );
+          controller.close();
+        },
+      });
+
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        body: mockGeminiStream,
+      });
+
+      const stream = await chatService.createStreamCompletion(
+        mockOpenAIRequest,
+        { model: mockModel, apiKey: mockApiKey }
+      );
+
+      const reader = stream.getReader();
+      const decoder = new TextDecoder();
+      let result = "";
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        result += decoder.decode(value);
+      }
+
+      expect(result).toContain('data: {"id":"chatcmpl-');
+      expect(result).toContain('"object":"chat.completion"');
+      expect(result).toContain(
+        '"choices":[{"index":0,"message":{"role":"assistant","content":"Hello"}'
+      );
+      expect(result).toContain(
+        '"choices":[{"index":0,"message":{"role":"assistant","content":" World"}'
+      );
+      expect(result).toContain("data: [DONE]");
+    });
+  });
+
   describe("convertOpenAIMessagesToGemini", () => {
     it("should convert messages without a system message correctly", () => {
       const openAIMessages: OpenAIMessage[] = [

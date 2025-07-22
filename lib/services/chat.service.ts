@@ -122,7 +122,9 @@ export class ChatService {
   }
 
   private convertGeminiResponseToOpenAI(
-    geminiResponse: GeminiChatResponse,
+    geminiResponse:
+      | GeminiChatResponse
+      | { candidates: GeminiChatResponse["candidates"] },
     model: string = ""
   ): OpenAIChatCompletion {
     const now = Math.floor(Date.now() / 1000);
@@ -157,26 +159,77 @@ export class ChatService {
           ]
         : [],
       usage: {
-        prompt_tokens: geminiResponse.usageMetadata.promptTokenCount,
+        prompt_tokens:
+          (geminiResponse as GeminiChatResponse).usageMetadata
+            ?.promptTokenCount || 0,
         completion_tokens:
-          geminiResponse.usageMetadata.candidatesTokenCount || 0,
-        total_tokens: geminiResponse.usageMetadata.totalTokenCount,
+          (geminiResponse as GeminiChatResponse).usageMetadata
+            ?.candidatesTokenCount || 0,
+        total_tokens:
+          (geminiResponse as GeminiChatResponse).usageMetadata
+            ?.totalTokenCount || 0,
       },
     };
   }
 
   async createStreamCompletion(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    request: OpenAIChatRequest
+    request: OpenAIChatRequest,
+    requestOptions: { model: string; apiKey: string }
   ): Promise<ReadableStream> {
-    // TODO: Implement streaming chat completion logic
-    const stream = new ReadableStream({
-      start(controller) {
-        controller.enqueue("data: [DONE]\n\n");
-        controller.close();
+    const geminiRequest = this.convertOpenAIMessagesToGemini(request.messages);
+
+    const geminiResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${requestOptions.model}:streamGenerateContent?key=${requestOptions.apiKey}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(geminiRequest),
+      }
+    );
+
+    if (!geminiResponse.ok || !geminiResponse.body) {
+      throw new Error("Gemini API stream request failed");
+    }
+
+    return geminiResponse.body.pipeThrough(
+      this._createStreamTransformer(requestOptions.model)
+    );
+  }
+
+  private _createStreamTransformer(model: string): TransformStream {
+    const decoder = new TextDecoder();
+    const encoder = new TextEncoder();
+    let buffer = "";
+
+    return new TransformStream({
+      transform: (chunk, controller) => {
+        buffer += decoder.decode(chunk);
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            try {
+              const geminiChunk = JSON.parse(line.substring(6));
+              const openAIChunk = this.convertGeminiResponseToOpenAI(
+                geminiChunk,
+                model
+              );
+              controller.enqueue(
+                encoder.encode(`data: ${JSON.stringify(openAIChunk)}\n\n`)
+              );
+            } catch (error) {
+              console.error("Error parsing stream chunk:", error);
+            }
+          }
+        }
+      },
+      flush: (controller) => {
+        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
       },
     });
-    return stream;
   }
 }
 

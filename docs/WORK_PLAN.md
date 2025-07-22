@@ -15,7 +15,7 @@
 - [x] **任务 1.2**: 实现 `chat.service.ts` 中的 OpenAI-to-Gemini **请求转换**逻辑。
 - [x] **任务 1.3**: 实现 `chat.service.ts` 中的 Gemini-to-OpenAI **非流式响应**转换逻辑。
 - [x] **任务 1.4**: 实现 OpenAI 兼容的**非流式**聊天 API 路由 (`/api/v1/chat/completions/route.ts`)。
-- [ ] **任务 1.5**: 实现故障转移与重试的高阶函数 `withRetryHandling`。
+- [x] **任务 1.5**: 实现故障转移与重试的高阶函数 `withRetryHandling`。
 
 ## P2: 流式响应与高级功能 (Streaming & Advanced Features)
 
