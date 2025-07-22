@@ -11,16 +11,14 @@ export class KeyService {
 
     const maxFailures = (await configService.get("MAX_FAILURES")) ?? 5;
 
-    const availableKeys = await db
-      .select({
-        key: apiKeys.key,
-      })
-      .from(apiKeys)
-      .where(
-        and(eq(apiKeys.isEnabled, true), lt(apiKeys.failureCount, maxFailures))
-      )
-      .orderBy(asc(apiKeys.lastUsedAt))
-      .limit(1);
+    const availableKeys = await db.query.apiKeys.findMany({
+      where: and(
+        eq(apiKeys.isEnabled, true),
+        lt(apiKeys.failureCount, maxFailures)
+      ),
+      orderBy: asc(apiKeys.lastUsedAt),
+      limit: 1,
+    });
 
     if (availableKeys.length === 0) {
       return null;
@@ -65,14 +63,12 @@ export class KeyService {
     }
 
     const maxFailures = (await configService.get("MAX_FAILURES")) ?? 5;
-    const disabledKeys = await db
-      .select({
-        key: apiKeys.key,
-      })
-      .from(apiKeys)
-      .where(
-        and(eq(apiKeys.isEnabled, true), lt(apiKeys.failureCount, maxFailures))
-      );
+    const disabledKeys = await db.query.apiKeys.findMany({
+      where: and(
+        eq(apiKeys.isEnabled, true),
+        lt(apiKeys.failureCount, maxFailures)
+      ),
+    });
 
     let recovered = 0;
     let failed = 0;

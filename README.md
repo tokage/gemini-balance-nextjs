@@ -48,16 +48,8 @@ This version goes beyond a simple proxy, offering a robust feature set including
 
 1.  Click the "Deploy with Vercel" button at the top of this README.
 2.  Follow the on-screen instructions to create a new project.
-3.  Add a Vercel KV database and connect it to your project.
-4.  Set the `DATABASE_URL` environment variable to the one provided by Vercel KV.
-5.  Deploy!
-
-### Option 2: Cloudflare
-
-1.  Create a new Cloudflare Pages project and connect it to your Git repository.
-2.  Create a new D1 database.
-3.  Add the D1 binding to your Pages project.
-4.  Set the `DATABASE_URL` environment variable to the one provided by D1.
+3.  Add a Vercel Postgres database and connect it to your project.
+4.  Set the `DATABASE_URL` environment variable to the one provided by Vercel Postgres.
 5.  Deploy!
 
 ### Option 3: Self-Hosted with Docker
@@ -91,13 +83,14 @@ This project can be deployed to any server with Docker and Docker Compose instal
     pnpm install
     ```
 2.  **Configure Environment**:
-    Create a `.env` file and add the following:
-    ```
-    DATABASE_URL="file:./local.db"
-    ```
+    Create a `.env` file and add your Postgres connection string. This can be a local database or a remote one from a provider like Supabase, Neon, etc.
+    ````
+    DATABASE_URL="your_postgres_connection_string"
+    ```>>>>>>> REPLACE
+    ````
 3.  **Initialize the Database**:
     ```bash
-    pnpm drizzle-kit push:sqlite
+    pnpm drizzle-kit push
     ```
 4.  **Start Application**:
     ```bash
