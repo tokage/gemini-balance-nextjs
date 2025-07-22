@@ -23,6 +23,51 @@ interface GeminiChatRequest {
   contents: GeminiContent[];
   systemInstruction?: GeminiSystemInstruction;
 }
+
+export interface GeminiChatResponse {
+  candidates: {
+    content: {
+      parts: { text: string }[];
+      role: "model";
+    };
+    finishReason: "STOP" | "MAX_TOKENS" | "SAFETY" | "RECITATION" | "OTHER";
+    index: number;
+    safetyRatings: {
+      category: string;
+      probability: string;
+    }[];
+  }[];
+  usageMetadata: {
+    promptTokenCount: number;
+    candidatesTokenCount: number;
+    totalTokenCount: number;
+  };
+}
+
+interface OpenAIChatCompletion {
+  id: string;
+  object: "chat.completion";
+  created: number;
+  model: string;
+  choices: {
+    index: number;
+    message: {
+      role: "assistant";
+      content: string;
+    };
+    finish_reason:
+      | "stop"
+      | "length"
+      | "function_call"
+      | "content_filter"
+      | "null";
+  }[];
+  usage: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+}
 // endregion: Types
 
 export class ChatService {
@@ -59,6 +104,50 @@ export class ChatService {
       }));
 
     return geminiRequest;
+  }
+
+  private convertGeminiResponseToOpenAI(
+    geminiResponse: GeminiChatResponse,
+    model: string = ""
+  ): OpenAIChatCompletion {
+    const now = Math.floor(Date.now() / 1000);
+    const choice = geminiResponse.candidates?.[0];
+
+    const finishReasonMap: Record<
+      GeminiChatResponse["candidates"][0]["finishReason"],
+      OpenAIChatCompletion["choices"][0]["finish_reason"]
+    > = {
+      STOP: "stop",
+      MAX_TOKENS: "length",
+      SAFETY: "content_filter",
+      RECITATION: "content_filter",
+      OTHER: "stop",
+    };
+
+    return {
+      id: `chatcmpl-${now}`, // Simple timestamp-based ID
+      object: "chat.completion",
+      created: now,
+      model: model,
+      choices: choice
+        ? [
+            {
+              index: 0,
+              message: {
+                role: "assistant",
+                content: choice.content.parts[0].text,
+              },
+              finish_reason: finishReasonMap[choice.finishReason] || "stop",
+            },
+          ]
+        : [],
+      usage: {
+        prompt_tokens: geminiResponse.usageMetadata.promptTokenCount,
+        completion_tokens:
+          geminiResponse.usageMetadata.candidatesTokenCount || 0,
+        total_tokens: geminiResponse.usageMetadata.totalTokenCount,
+      },
+    };
   }
 
   async createStreamCompletion(
