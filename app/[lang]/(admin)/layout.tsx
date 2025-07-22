@@ -17,13 +17,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-export default function AdminLayout({
-  children,
-  params: { lang },
-}: {
+type LayoutProps = {
   children: React.ReactNode;
-  params: { lang: "en" | "zh" };
-}) {
+  params: Promise<{ lang: "en" | "zh" }>;
+};
+
+export default async function AdminLayout({ children, params }: LayoutProps) {
+  const { lang } = await params;
   return (
     <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
       <div className="hidden border-r bg-muted/40 md:block">

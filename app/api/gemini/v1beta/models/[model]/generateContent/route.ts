@@ -4,16 +4,13 @@ import { NextResponse } from "next/server";
 
 export const runtime = "edge";
 
-interface RequestParams {
-  params: {
-    model: string;
-  };
-}
-
-async function handler(req: Request, { params }: RequestParams) {
+async function handler(
+  req: Request,
+  { params }: { params: Promise<{ model: string }> }
+) {
   try {
     const requestBody = await req.json();
-    const model = params.model;
+    const { model } = await params;
 
     const execute = (apiKey: string) =>
       chatService.createNativeCompletion(requestBody, { model, apiKey });

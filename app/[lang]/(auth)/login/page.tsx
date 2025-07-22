@@ -2,11 +2,12 @@ import { getDictionary } from "../../dictionaries";
 import { createLoginAction } from "../actions";
 import { LoginForm } from "../login-form";
 
-export default async function LoginPage({
-  params: { lang },
-}: {
-  params: { lang: "en" | "zh" };
-}) {
+type PageProps = {
+  params: Promise<{ lang: "en" | "zh" }>;
+};
+
+export default async function LoginPage({ params }: PageProps) {
+  const { lang } = await params;
   const dict = await getDictionary(lang);
   const loginAction = createLoginAction.bind(null, lang);
 

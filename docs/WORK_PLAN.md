@@ -40,8 +40,8 @@
 
 ## P4: 部署与收尾 (Deployment & Finalization)
 
-- [ ] **任务 4.1**: 实现数据库日志记录 (`request_logs`, `error_logs`)。
-- [ ] **任务 4.2**: 实现 Serverless 定时任务 (密钥自动恢复)。
-- [ ] **任务 4.3**: 编写 `README.md`，提供详细的部署和使用指南（包括 Cloudflare 和自托管两种路径）。
-- [ ] **任务 4.4**: 准备 Dockerfile 和 `docker-compose.yml` 以支持自托管部署。
-- [ ] **任务 4.5**: 进行全面的端到端测试。
+- [x] **任务 4.1**: 实现数据库日志记录 (`request_logs`, `error_logs`)。
+- [x] **任务 4.2**: 实现 Serverless 定时任务 (密钥自动恢复)。
+- [x] **任务 4.3**: 编写 `README.md`，提供详细的部署和使用指南（包括 Cloudflare 和自托管两种路径）。
+- [x] **任务 4.4**: 准备 Dockerfile 和 `docker-compose.yml` 以支持自托管部署。
+- [x] **任务 4.5**: 进行全面的端到端测试。

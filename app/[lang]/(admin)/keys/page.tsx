@@ -24,11 +24,12 @@ async function checkAuth(lang: "en" | "zh") {
   }
 }
 
-export default async function KeysPage({
-  params: { lang },
-}: {
-  params: { lang: "en" | "zh" };
-}) {
+type PageProps = {
+  params: Promise<{ lang: "en" | "zh" }>;
+};
+
+export default async function KeysPage({ params }: PageProps) {
+  const { lang } = await params;
   await checkAuth(lang);
   const { keys } = await getKeys();
 

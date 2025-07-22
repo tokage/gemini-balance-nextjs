@@ -42,11 +42,11 @@ import { getKeys } from "../keys/actions";
 import { getLogs } from "../logs/actions";
 
 type PageProps = {
-  params: { lang: "en" | "zh" };
+  params: Promise<{ lang: "en" | "zh" }>;
 };
 
 export default async function DashboardPage({ params }: PageProps) {
-  const { lang } = params;
+  const { lang } = await params;
   await checkAuth(lang);
 
   const [keyData, requestLogData, errorLogData] = await Promise.all([

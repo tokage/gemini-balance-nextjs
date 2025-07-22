@@ -18,10 +18,22 @@ class ConfigService {
   private async initialize() {
     if (this.isInitialized) return;
 
-    const allSettings = await db.select().from(settings);
-    for (const setting of allSettings) {
-      this.setConfigValue(setting.key as keyof AppConfig, setting.value);
+    if (process.env.NODE_ENV === "production") {
+      const allSettings = await db.select().from(settings);
+      for (const setting of allSettings) {
+        this.setConfigValue(setting.key as keyof AppConfig, setting.value);
+      }
+    } else {
+      // Use default values for development
+      this.config = {
+        AUTH_TOKEN: "default_token",
+        MAX_FAILURES: 10,
+        MAX_RETRIES: 3,
+        SEARCH_MODELS: ["gemini-1.5-flash"],
+        IMAGE_MODELS: ["gemini-1.5-flash"],
+      };
     }
+
     this.isInitialized = true;
   }
 

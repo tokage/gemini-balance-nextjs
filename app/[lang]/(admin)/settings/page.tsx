@@ -23,11 +23,12 @@ async function checkAuth(lang: "en" | "zh") {
   }
 }
 
-export default async function SettingsPage({
-  params: { lang },
-}: {
-  params: { lang: "en" | "zh" };
-}) {
+type PageProps = {
+  params: Promise<{ lang: "en" | "zh" }>;
+};
+
+export default async function SettingsPage({ params }: PageProps) {
+  const { lang } = await params;
   await checkAuth(lang);
   const { settings } = await getSettings();
 

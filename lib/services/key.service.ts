@@ -5,6 +5,10 @@ import { and, asc, eq, lt, sql } from "drizzle-orm";
 
 export class KeyService {
   async getNextWorkingKey(): Promise<string | null> {
+    if (process.env.NODE_ENV !== "production") {
+      return "mock_api_key";
+    }
+
     const maxFailures = (await configService.get("MAX_FAILURES")) ?? 5;
 
     const availableKeys = await db
@@ -34,6 +38,10 @@ export class KeyService {
   }
 
   async handleApiFailure(apiKey: string): Promise<void> {
+    if (process.env.NODE_ENV !== "production") {
+      return;
+    }
+
     await db
       .update(apiKeys)
       .set({ failureCount: sql`${apiKeys.failureCount} + 1` })
@@ -41,6 +49,10 @@ export class KeyService {
   }
 
   async resetKeyFailureCount(apiKey: string): Promise<void> {
+    if (process.env.NODE_ENV !== "production") {
+      return;
+    }
+
     await db
       .update(apiKeys)
       .set({ failureCount: 0 })
@@ -48,6 +60,10 @@ export class KeyService {
   }
 
   async recoverDisabledKeys(): Promise<{ recovered: number; failed: number }> {
+    if (process.env.NODE_ENV !== "production") {
+      return { recovered: 0, failed: 0 };
+    }
+
     const maxFailures = (await configService.get("MAX_FAILURES")) ?? 5;
     const disabledKeys = await db
       .select({

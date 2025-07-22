@@ -8,6 +8,10 @@ import {
 
 class LogService {
   async recordRequest(log: InsertRequestLog) {
+    if (process.env.NODE_ENV !== "production") {
+      return;
+    }
+
     try {
       await db.insert(requestLogs).values(log);
     } catch (error) {
@@ -16,6 +20,10 @@ class LogService {
   }
 
   async recordError(log: InsertErrorLog) {
+    if (process.env.NODE_ENV !== "production") {
+      return;
+    }
+
     try {
       await db.insert(errorLogs).values(log);
     } catch (error) {
