@@ -198,13 +198,26 @@ export class ChatService {
     );
   }
 
+  async getBaseModels(
+    apiKey: string
+  ): Promise<{ name: string; displayName: string }[]> {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
+    );
+    if (!response.ok) {
+      throw new Error("Failed to fetch base models from Gemini");
+    }
+    const data = await response.json();
+    return data.models;
+  }
+
   private _createStreamTransformer(model: string): TransformStream {
     const decoder = new TextDecoder();
     const encoder = new TextEncoder();
     let buffer = "";
 
     return new TransformStream({
-      transform: (chunk, controller) => {
+      transform: (chunk: Uint8Array, controller) => {
         buffer += decoder.decode(chunk);
         const lines = buffer.split("\n");
         buffer = lines.pop() || "";

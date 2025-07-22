@@ -115,7 +115,6 @@ describe("ChatService", () => {
       const reader = stream.getReader();
       const decoder = new TextDecoder();
       let result = "";
-      // eslint-disable-next-line no-constant-condition
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -131,6 +130,24 @@ describe("ChatService", () => {
         '"choices":[{"index":0,"message":{"role":"assistant","content":" World"}'
       );
       expect(result).toContain("data: [DONE]");
+    });
+  });
+
+  describe("getBaseModels", () => {
+    it("should fetch and return base models from Gemini", async () => {
+      const mockApiKey = "test-api-key";
+      const mockModels = [{ name: "gemini-pro" }, { name: "gemini-ultra" }];
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ models: mockModels }),
+      });
+
+      const result = await chatService.getBaseModels(mockApiKey);
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        `https://generativelanguage.googleapis.com/v1beta/models?key=${mockApiKey}`
+      );
+      expect(result).toEqual(mockModels);
     });
   });
 

@@ -6,6 +6,8 @@ type AppConfig = {
   AUTH_TOKEN: string;
   MAX_FAILURES: number;
   MAX_RETRIES: number;
+  SEARCH_MODELS: string[];
+  IMAGE_MODELS: string[];
   // Add other settings keys here as needed
 };
 
@@ -35,6 +37,9 @@ class ConfigService {
       case "MAX_FAILURES":
       case "MAX_RETRIES":
         return parseInt(value, 10) as AppConfig[T];
+      case "SEARCH_MODELS":
+      case "IMAGE_MODELS":
+        return value.split(",").map((s) => s.trim()) as AppConfig[T];
       default:
         return value as AppConfig[T];
     }
