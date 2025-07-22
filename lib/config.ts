@@ -18,21 +18,25 @@ class ConfigService {
 
     const allSettings = await db.select().from(settings);
     for (const setting of allSettings) {
-      this.config[setting.key as keyof AppConfig] = this.parseValue(
-        setting.key as keyof AppConfig,
-        setting.value
-      );
+      this.setConfigValue(setting.key as keyof AppConfig, setting.value);
     }
     this.isInitialized = true;
   }
 
-  private parseValue(key: keyof AppConfig, value: string): any {
+  private setConfigValue<T extends keyof AppConfig>(key: T, value: string) {
+    this.config[key] = this.parseValue(key, value);
+  }
+
+  private parseValue<T extends keyof AppConfig>(
+    key: T,
+    value: string
+  ): AppConfig[T] {
     switch (key) {
       case "MAX_FAILURES":
       case "MAX_RETRIES":
-        return parseInt(value, 10);
+        return parseInt(value, 10) as AppConfig[T];
       default:
-        return value;
+        return value as AppConfig[T];
     }
   }
 

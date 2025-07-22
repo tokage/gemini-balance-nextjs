@@ -1,15 +1,43 @@
+import { configService } from "@/lib/config";
 import { db } from "@/lib/db";
 import { apiKeys } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { and, asc, eq, lt, sql } from "drizzle-orm";
 
 export class KeyService {
   async getNextWorkingKey(): Promise<string | null> {
-    // TODO: Implement LRU or random selection logic
-    return null;
+    const maxFailures = (await configService.get("MAX_FAILURES")) ?? 5;
+
+    const availableKeys = await db
+      .select({
+        key: apiKeys.key,
+      })
+      .from(apiKeys)
+      .where(
+        and(eq(apiKeys.isEnabled, true), lt(apiKeys.failureCount, maxFailures))
+      )
+      .orderBy(asc(apiKeys.lastUsedAt))
+      .limit(1);
+
+    if (availableKeys.length === 0) {
+      return null;
+    }
+
+    const selectedKey = availableKeys[0].key;
+
+    // Update the last used timestamp
+    await db
+      .update(apiKeys)
+      .set({ lastUsedAt: new Date() })
+      .where(eq(apiKeys.key, selectedKey));
+
+    return selectedKey;
   }
 
   async handleApiFailure(apiKey: string): Promise<void> {
-    // TODO: Implement atomic failure count increment
+    await db
+      .update(apiKeys)
+      .set({ failureCount: sql`${apiKeys.failureCount} + 1` })
+      .where(eq(apiKeys.key, apiKey));
   }
 
   async resetKeyFailureCount(apiKey: string): Promise<void> {

@@ -4,7 +4,8 @@
 // type OpenAIChatRequest = z.infer<typeof OpenAIChatRequest>;
 
 export class ChatService {
-  async createCompletion(request: any): Promise<any> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async createCompletion(request: unknown): Promise<Record<string, unknown>> {
     // TODO: Implement non-streaming chat completion logic
     // 1. Get a working API key from KeyService
     // 2. Convert OpenAI request to Gemini format
@@ -14,7 +15,8 @@ export class ChatService {
     return {};
   }
 
-  async createStreamCompletion(request: any): Promise<ReadableStream> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async createStreamCompletion(request: unknown): Promise<ReadableStream> {
     // TODO: Implement streaming chat completion logic
     const stream = new ReadableStream({
       start(controller) {
