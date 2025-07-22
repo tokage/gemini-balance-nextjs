@@ -1,22 +1,70 @@
-// Define your types here, e.g., using Zod or native TS interfaces
-// import { z } from "zod";
-// const OpenAIChatRequest = z.object({...});
-// type OpenAIChatRequest = z.infer<typeof OpenAIChatRequest>;
+// region: Types
+interface OpenAIMessage {
+  role: "system" | "user" | "assistant";
+  content: string;
+}
+
+interface OpenAIChatRequest {
+  messages: OpenAIMessage[];
+  // Other properties like model, temperature, etc. are omitted for now
+}
+
+interface GeminiContent {
+  role: "user" | "model";
+  parts: { text: string }[];
+}
+
+interface GeminiSystemInstruction {
+  role: "system";
+  parts: { text: string }[];
+}
+
+interface GeminiChatRequest {
+  contents: GeminiContent[];
+  systemInstruction?: GeminiSystemInstruction;
+}
+// endregion: Types
 
 export class ChatService {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async createCompletion(request: unknown): Promise<Record<string, unknown>> {
-    // TODO: Implement non-streaming chat completion logic
-    // 1. Get a working API key from KeyService
-    // 2. Convert OpenAI request to Gemini format
-    // 3. Call Gemini API
-    // 4. Convert Gemini response to OpenAI format
-    // 5. Log the request
+  async createCompletion(
+    request: OpenAIChatRequest
+  ): Promise<Record<string, unknown>> {
+    const geminiRequest = this.convertOpenAIMessagesToGemini(request.messages);
+
+    // For now, we just log the converted request to verify the logic
+    console.log(JSON.stringify(geminiRequest, null, 2));
+
+    // TODO: Implement steps 3-5
     return {};
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async createStreamCompletion(request: unknown): Promise<ReadableStream> {
+  private convertOpenAIMessagesToGemini(
+    messages: OpenAIMessage[]
+  ): GeminiChatRequest {
+    const geminiRequest: GeminiChatRequest = { contents: [] };
+    const systemMessage = messages.find((msg) => msg.role === "system");
+
+    if (systemMessage) {
+      geminiRequest.systemInstruction = {
+        role: "system",
+        parts: [{ text: systemMessage.content }],
+      };
+    }
+
+    geminiRequest.contents = messages
+      .filter((msg) => msg.role !== "system")
+      .map((msg) => ({
+        role: msg.role === "assistant" ? "model" : "user",
+        parts: [{ text: msg.content }],
+      }));
+
+    return geminiRequest;
+  }
+
+  async createStreamCompletion(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    request: OpenAIChatRequest
+  ): Promise<ReadableStream> {
     // TODO: Implement streaming chat completion logic
     const stream = new ReadableStream({
       start(controller) {

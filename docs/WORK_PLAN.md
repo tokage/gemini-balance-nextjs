@@ -11,7 +11,7 @@
 
 ## P1: 核心代理功能 (Core Proxy Functionality)
 
-- [ ] **任务 1.1**: 实现 `key.service.ts` 中的密钥管理逻辑 (LRU 轮询, 故障处理)。
+- [x] **任务 1.1**: 实现 `key.service.ts` 中的密钥管理逻辑 (LRU 轮询, 故障处理)。
 - [ ] **任务 1.2**: 实现 `chat.service.ts` 中的 OpenAI-to-Gemini **请求转换**逻辑。
 - [ ] **任务 1.3**: 实现 `chat.service.ts` 中的 Gemini-to-OpenAI **非流式响应**转换逻辑。
 - [ ] **任务 1.4**: 实现 OpenAI 兼容的**非流式**聊天 API 路由 (`/api/v1/chat/completions/route.ts`)。
