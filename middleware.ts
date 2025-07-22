@@ -6,30 +6,27 @@ export const locales = ["en", "zh"];
 export const defaultLocale = "en";
 
 function getLocale(request: NextRequest): string {
+  // 1. Check cookie
+  const localeCookie = request.cookies.get("NEXT_LOCALE")?.value;
+  if (localeCookie && locales.includes(localeCookie)) {
+    return localeCookie;
+  }
+
+  // 2. Check 'Accept-Language' header
   const negotiatorHeaders: Record<string, string> = {};
   request.headers.forEach((value, key) => (negotiatorHeaders[key] = value));
-
   const languages = new Negotiator({ headers: negotiatorHeaders }).languages();
 
   try {
     return match(languages, locales, defaultLocale);
   } catch {
+    // 3. Fallback to default
     return defaultLocale;
   }
 }
 
 export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
-
-  // // `/_next/` and `/api/` are ignored by the watcher, but we need to ignore files in `public`
-  if (
-    [
-      "/manifest.json",
-      "/favicon.ico",
-      // Your other files in `public`
-    ].includes(pathname)
-  )
-    return;
 
   const pathnameIsMissingLocale = locales.every(
     (locale) => !pathname.startsWith(`/${locale}/`) && pathname !== `/${locale}`
@@ -39,12 +36,20 @@ export function middleware(request: NextRequest) {
   if (pathnameIsMissingLocale) {
     const locale = getLocale(request);
 
-    return NextResponse.redirect(
+    const response = NextResponse.redirect(
       new URL(
         `/${locale}${pathname.startsWith("/") ? "" : "/"}${pathname}`,
         request.url
       )
     );
+
+    // Set cookie for future requests
+    response.cookies.set("NEXT_LOCALE", locale, {
+      maxAge: 60 * 60 * 24 * 365, // 1 year
+      path: "/",
+    });
+
+    return response;
   }
 }
 
