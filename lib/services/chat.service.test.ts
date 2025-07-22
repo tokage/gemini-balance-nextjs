@@ -1,6 +1,14 @@
-import { describe, expect, it } from "vitest";
-import type { GeminiChatResponse } from "./chat.service";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { GeminiChatResponse, OpenAIChatRequest } from "./chat.service";
 import { ChatService } from "./chat.service";
+import { keyService } from "./key.service";
+
+vi.mock("./key.service", () => ({
+  keyService: {
+    getNextWorkingKey: vi.fn(),
+    handleApiFailure: vi.fn(),
+  },
+}));
 
 interface OpenAIMessage {
   role: "system" | "user" | "assistant";
@@ -22,6 +30,55 @@ class TestableChatService extends ChatService {
 
 describe("ChatService", () => {
   const chatService = new TestableChatService();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  describe("createCompletion", () => {
+    it("should call Gemini API and return a converted response", async () => {
+      const mockApiKey = "test-api-key";
+      const mockModel = "gemini-pro";
+      const mockOpenAIRequest: OpenAIChatRequest = {
+        messages: [{ role: "user", content: "Hello" }],
+      };
+      const mockGeminiResponse: GeminiChatResponse = {
+        candidates: [
+          {
+            content: {
+              parts: [{ text: "Hi there!" }],
+              role: "model",
+            },
+            finishReason: "STOP",
+            index: 0,
+            safetyRatings: [],
+          },
+        ],
+        usageMetadata: {
+          promptTokenCount: 1,
+          candidatesTokenCount: 2,
+          totalTokenCount: 3,
+        },
+      };
+
+      vi.spyOn(keyService, "getNextWorkingKey").mockResolvedValue(mockApiKey);
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(mockGeminiResponse),
+      });
+
+      const result = await chatService.createCompletion(mockOpenAIRequest, {
+        model: mockModel,
+      });
+
+      expect(keyService.getNextWorkingKey).toHaveBeenCalled();
+      expect(global.fetch).toHaveBeenCalledWith(
+        `https://generativelanguage.googleapis.com/v1beta/models/${mockModel}:generateContent?key=${mockApiKey}`,
+        expect.any(Object)
+      );
+      expect(result.choices[0].message.content).toBe("Hi there!");
+    });
+  });
 
   describe("convertOpenAIMessagesToGemini", () => {
     it("should convert messages without a system message correctly", () => {

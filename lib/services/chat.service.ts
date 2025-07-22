@@ -1,10 +1,12 @@
+import { keyService } from "./key.service";
+
 // region: Types
 interface OpenAIMessage {
   role: "system" | "user" | "assistant";
   content: string;
 }
 
-interface OpenAIChatRequest {
+export interface OpenAIChatRequest {
   messages: OpenAIMessage[];
   // Other properties like model, temperature, etc. are omitted for now
 }
@@ -72,15 +74,36 @@ interface OpenAIChatCompletion {
 
 export class ChatService {
   async createCompletion(
-    request: OpenAIChatRequest
-  ): Promise<Record<string, unknown>> {
+    request: OpenAIChatRequest,
+    requestOptions: { model: string }
+  ): Promise<OpenAIChatCompletion> {
     const geminiRequest = this.convertOpenAIMessagesToGemini(request.messages);
+    const apiKey = await keyService.getNextWorkingKey();
 
-    // For now, we just log the converted request to verify the logic
-    console.log(JSON.stringify(geminiRequest, null, 2));
+    if (!apiKey) {
+      throw new Error("No available API keys");
+    }
 
-    // TODO: Implement steps 3-5
-    return {};
+    const geminiResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${requestOptions.model}:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(geminiRequest),
+      }
+    );
+
+    if (!geminiResponse.ok) {
+      await keyService.handleApiFailure(apiKey);
+      throw new Error(
+        `Gemini API request failed: ${geminiResponse.statusText}`
+      );
+    }
+
+    const geminiData = await geminiResponse.json();
+    return this.convertGeminiResponseToOpenAI(geminiData, requestOptions.model);
   }
 
   private convertOpenAIMessagesToGemini(
