@@ -10,7 +10,7 @@ import { updateSettings } from "./actions";
 type SettingsData = Record<string, string>;
 
 export function SettingsForm({ initialData }: { initialData: SettingsData }) {
-  const [state, formAction] = useActionState(updateSettings, {
+  const [, formAction] = useActionState(updateSettings, {
     success: false,
     message: "",
   });

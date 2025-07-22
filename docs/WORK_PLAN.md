@@ -32,11 +32,11 @@
 - [x] **任务 3.3**: (UI) 搭建管理后台的整体布局 (`(admin)/layout.tsx`)。
 - [x] **任务 3.4**: (UI) 实现密钥管理页面 (`/keys`)，包括展示、过滤和批量操作。
 - [x] **任务 3.5**: (API) 实现密钥管理的内部 API (`/api/admin/keys/...`)。
-- [ ] **任务 3.6**: (UI) 实现配置管理页面 (`/settings`)。
-- [ ] **任务 3.7**: (API) 实现配置管理的内部 API (`/api/admin/settings`)。
-- [ ] **任务 3.8**: (UI) 实现仪表盘页面 (`/dashboard`)。
-- [ ] **任务 3.9**: (UI) 实现日志查看器页面 (`/logs`)。
-- [ ] **任务 3.10**: (API) 实现日志查询的内部 API (`/api/admin/logs/...`)。
+- [x] **任务 3.6**: (UI) 实现配置管理页面 (`/settings`)。
+- [x] **任务 3.7**: (API) 实现配置管理的内部 API (`/api/admin/settings`)。
+- [x] **任务 3.8**: (UI) 实现仪表盘页面 (`/dashboard`)。
+- [x] **任务 3.9**: (UI) 实现日志查看器页面 (`/logs`)。
+- [x] **任务 3.10**: (API) 实现日志查询的内部 API (`/api/admin/logs/...`)。
 
 ## P4: 部署与收尾 (Deployment & Finalization)
 
