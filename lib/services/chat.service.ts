@@ -244,6 +244,52 @@ export class ChatService {
       },
     });
   }
+
+  async createNativeCompletion(
+    request: GeminiChatRequest,
+    requestOptions: { model: string; apiKey: string }
+  ): Promise<GeminiChatResponse> {
+    const geminiResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${requestOptions.model}:generateContent?key=${requestOptions.apiKey}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(request),
+      }
+    );
+
+    if (!geminiResponse.ok) {
+      throw new Error(
+        `Gemini API request failed: ${geminiResponse.statusText}`
+      );
+    }
+
+    return await geminiResponse.json();
+  }
+
+  async createNativeStreamCompletion(
+    request: GeminiChatRequest,
+    requestOptions: { model: string; apiKey: string }
+  ): Promise<ReadableStream> {
+    const geminiResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${requestOptions.model}:streamGenerateContent?key=${requestOptions.apiKey}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(request),
+      }
+    );
+
+    if (!geminiResponse.ok || !geminiResponse.body) {
+      throw new Error("Gemini API stream request failed");
+    }
+
+    return geminiResponse.body;
+  }
 }
 
 export const chatService = new ChatService();
