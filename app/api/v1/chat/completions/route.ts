@@ -5,13 +5,27 @@ import { NextResponse } from "next/server";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { model, ...rest } = body;
+    const { model, stream, ...rest } = body;
 
-    const handler = (apiKey: string) =>
-      chatService.createCompletion(rest, { model, apiKey });
+    if (stream) {
+      const handler = (apiKey: string) =>
+        chatService.createStreamCompletion(rest, { model, apiKey });
 
-    const chatCompletion = await withRetryHandling(handler);
-    return NextResponse.json(chatCompletion);
+      const streamResponse = await withRetryHandling(handler);
+      return new Response(streamResponse, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          Connection: "keep-alive",
+        },
+      });
+    } else {
+      const handler = (apiKey: string) =>
+        chatService.createCompletion(rest, { model, apiKey });
+
+      const chatCompletion = await withRetryHandling(handler);
+      return NextResponse.json(chatCompletion);
+    }
   } catch (error: unknown) {
     const errorMessage =
       error instanceof Error ? error.message : "An unexpected error occurred";

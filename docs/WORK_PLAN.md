@@ -19,7 +19,7 @@
 
 ## P2: 流式响应与高级功能 (Streaming & Advanced Features)
 
-- [ ] **任务 2.1**: 实现 `chat.service.ts` 中的 Gemini-to-OpenAI **流式响应**转换逻辑。
+- [x] **任务 2.1**: 实现 `chat.service.ts` 中的 Gemini-to-OpenAI **流式响应**转换逻辑。
 - [ ] **任务 2.2**: 实现 OpenAI 兼容的**流式**聊天 API 路由。
 - [ ] **任务 2.3**: 实现动态衍生模型功能 (`/api/v1/models/route.ts`)。
 - [ ] **任务 2.4**: 实现其余 OpenAI 兼容 API 路由 (`embeddings`, `images/generations`, `audio/speech`)。
