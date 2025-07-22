@@ -1,0 +1,8 @@
+{
+    "loginPage": {
+        "title": "Login",
+        "description": "Enter your password to access the admin dashboard.",
+        "passwordLabel": "Password",
+        "signInButton": "Sign in"
+    }
+}

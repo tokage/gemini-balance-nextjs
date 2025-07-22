@@ -23,7 +23,7 @@
 - [x] **任务 2.2**: 实现 OpenAI 兼容的**流式**聊天 API 路由。
 - [x] **任务 2.3**: 实现动态衍生模型功能 (`/api/v1/models/route.ts`)。
 - [x] **任务 2.4**: 实现其余 OpenAI 兼容 API 路由 (`embeddings`, `images/generations`, `audio/speech`)。
-- [ ] **任务 2.5**: 实现所有 Gemini 原生 API 路由。
+- [x] **任务 2.5**: 实现所有 Gemini 原生 API 路由。
 
 ## P3: 管理后台 (Admin Dashboard)
 

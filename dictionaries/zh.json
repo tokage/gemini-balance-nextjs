@@ -1,0 +1,8 @@
+{
+    "loginPage": {
+        "title": "登录",
+        "description": "请输入密码以访问管理后台。",
+        "passwordLabel": "密码",
+        "signInButton": "登 录"
+    }
+}
